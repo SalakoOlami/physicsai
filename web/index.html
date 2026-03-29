@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PhysicsAI — A-Level Tutor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- ===== SIDEBAR ===== -->
+<nav id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-title">⚛ PhysicsAI</div>
+    <div class="logo-sub">A-Level Revision Tutor</div>
+  </div>
+
+  <a class="nav-link active" data-page="dashboard">
+    <span class="nav-icon">🏠</span> Dashboard
+  </a>
+  <a class="nav-link" data-page="tutor">
+    <span class="nav-icon">🤖</span> AI Tutor
+  </a>
+  <a class="nav-link" data-page="library">
+    <span class="nav-icon">📚</span> Library
+  </a>
+  <a class="nav-link" data-page="progress">
+    <span class="nav-icon">📊</span> Progress
+  </a>
+  <a class="nav-link" data-page="quiz">
+    <span class="nav-icon">🧠</span> Quiz
+  </a>
+
+  <div class="sidebar-footer">
+    Powered by Gemini + Claude
+  </div>
+</nav>
+
+<!-- ===== MAIN CONTENT ===== -->
+<div id="main">
+
+  <!-- ============ DASHBOARD ============ -->
+  <div id="page-dashboard" class="page active">
+    <div class="page-header">
+      <div class="page-title">Welcome back 👋</div>
+      <div class="page-sub">A-Level Physics · Chapters 9–12</div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-value" id="stat-questions">0</div>
+        <div class="stat-label">Questions Asked</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-topics">0</div>
+        <div class="stat-label">Topics Explored</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-streak">0</div>
+        <div class="stat-label">Day Streak 🔥</div>
+      </div>
+    </div>
+
+    <!-- Hero CTA -->
+    <div class="hero-card">
+      <div>
+        <div class="hero-title">Start Revising Now</div>
+        <div class="hero-sub">Ask the AI tutor anything about your A-Level Physics syllabus. Get instant, clear answers backed by your study materials.</div>
+      </div>
+      <a class="btn btn-primary" data-page="tutor" style="margin-left:32px;flex-shrink:0;">
+        Launch AI Tutor →
+      </a>
+    </div>
+
+    <!-- Recent questions -->
+    <div class="section-header">Recent Questions</div>
+    <div id="recent-list" class="recent-list">
+      <div class="text-muted text-sm" style="padding:12px 0;">No questions yet. Ask your first one!</div>
+    </div>
+  </div>
+
+  <!-- ============ AI TUTOR ============ -->
+  <div id="page-tutor" class="page">
+
+    <!-- Left panel: Key concepts -->
+    <div id="concepts-panel">
+      <div class="concepts-title">Key Concepts</div>
+      <div id="concepts-list">
+        <div class="concepts-empty">Concepts will appear here as you chat.</div>
+      </div>
+    </div>
+
+    <!-- Right: chat -->
+    <div id="chat-area">
+      <div id="chat-header">
+        <div>
+          <div class="chat-header-title">AI Physics Tutor</div>
+          <div class="chat-header-sub">Ask anything about your syllabus</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <select id="lang-select">
+            <option value="en">🇬🇧 English</option>
+            <option value="zh">🇨🇳 中文</option>
+            <option value="ko">🇰🇷 한국어</option>
+          </select>
+          <button class="btn btn-ghost" id="clear-btn" style="font-size:12px;padding:8px 14px;">Clear chat</button>
+        </div>
+      </div>
+
+      <div id="messages">
+        <div class="chat-welcome">
+          <span class="chat-welcome-icon">🔬</span>
+          <h2>What would you like to revise?</h2>
+          <p>Ask me anything from Chapters 9–12. I'll answer using your actual study materials.</p>
+        </div>
+      </div>
+
+      <div id="input-area">
+        <form id="input-form">
+          <textarea
+            id="question-input"
+            placeholder="Ask a question, e.g. 'Explain Young's modulus…'"
+            rows="1"
+          ></textarea>
+          <button type="submit" id="send-btn">➤</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LIBRARY ============ -->
+  <div id="page-library" class="page">
+    <div class="page-header">
+      <div class="page-title">Study Library</div>
+      <div class="page-sub">All documents ingested into your knowledge base</div>
+    </div>
+    <div id="library-content">
+      <div class="loading-state">Loading library…</div>
+    </div>
+  </div>
+
+  <!-- ============ PROGRESS ============ -->
+  <div id="page-progress" class="page">
+    <div class="page-header">
+      <div class="page-title">Your Progress</div>
+      <div class="page-sub">Track your revision journey</div>
+    </div>
+
+    <div class="progress-grid">
+      <!-- Left: badges -->
+      <div>
+        <div class="section-header mb-16">Achievements</div>
+        <div class="badges-grid" id="badges-grid"><!-- filled by JS --></div>
+      </div>
+
+      <!-- Right: history -->
+      <div>
+        <div class="section-header mb-16">Question History</div>
+        <div id="history-list" class="history-list">
+          <div class="text-muted text-sm">No questions yet.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ QUIZ ============ -->
+  <div id="page-quiz" class="page">
+    <div class="page-header">
+      <div class="page-title">Quiz Mode 🧠</div>
+      <div class="page-sub">Test yourself with A-Level style questions</div>
+    </div>
+
+    <!-- Setup screen -->
+    <div id="quiz-setup">
+      <div class="card" style="max-width:520px;">
+        <div style="margin-bottom:20px;">
+          <label class="quiz-label">Topic</label>
+          <input id="quiz-topic" class="quiz-input" type="text" placeholder="e.g. Young's modulus, radioactive decay, waves…" />
+        </div>
+
+        <div style="margin-bottom:20px;">
+          <label class="quiz-label">Difficulty</label>
+          <div class="diff-row">
+            <button class="diff-btn" data-diff="easy">Easy</button>
+            <button class="diff-btn active" data-diff="medium">Medium</button>
+            <button class="diff-btn" data-diff="hard">Hard</button>
+          </div>
+        </div>
+
+        <div style="margin-bottom:20px;">
+          <label class="quiz-label">Number of questions</label>
+          <div class="diff-row">
+            <button class="num-btn" data-num="5">5</button>
+            <button class="num-btn active" data-num="10">10</button>
+            <button class="num-btn" data-num="15">15</button>
+          </div>
+        </div>
+
+        <div style="margin-bottom:24px;">
+          <label class="quiz-label">Timer (per question)</label>
+          <div class="diff-row">
+            <button class="timer-btn active" data-timer="0">No timer</button>
+            <button class="timer-btn" data-timer="30">30s</button>
+            <button class="timer-btn" data-timer="60">1 min</button>
+            <button class="timer-btn" data-timer="90">90s</button>
+          </div>
+        </div>
+
+        <button class="btn btn-primary full-width" id="start-quiz-btn">Generate Quiz →</button>
+        <div id="quiz-loading" style="display:none;text-align:center;margin-top:16px;color:var(--muted);font-size:14px;">
+          <span class="thinking-dots"><span>.</span><span>.</span><span>.</span></span> Generating questions…
+        </div>
+      </div>
+    </div>
+
+    <!-- Active quiz screen -->
+    <div id="quiz-active" style="display:none;max-width:680px;">
+      <div class="quiz-topbar">
+        <div class="quiz-progress-text">Question <span id="q-current">1</span> of <span id="q-total">10</span></div>
+        <div id="quiz-timer-display" class="quiz-timer" style="display:none;">⏱ <span id="timer-val">60</span>s</div>
+        <button class="btn btn-ghost" id="quit-quiz-btn" style="font-size:12px;padding:6px 12px;">Quit</button>
+      </div>
+
+      <div class="quiz-progress-bar"><div id="quiz-progress-fill" class="quiz-progress-fill"></div></div>
+
+      <div class="card" style="margin-top:20px;">
+        <div id="question-text" class="question-text"></div>
+        <div id="options-list" class="options-list"></div>
+        <div id="question-feedback" class="question-feedback" style="display:none;"></div>
+        <button class="btn btn-primary" id="next-q-btn" style="display:none;margin-top:16px;">Next →</button>
+      </div>
+    </div>
+
+    <!-- Results screen -->
+    <div id="quiz-results" style="display:none;max-width:520px;">
+      <div class="card" style="text-align:center;padding:40px;">
+        <div id="results-emoji" style="font-size:52px;margin-bottom:12px;"></div>
+        <div id="results-score" style="font-size:32px;font-weight:700;color:var(--text);margin-bottom:6px;"></div>
+        <div id="results-msg" style="font-size:14px;color:var(--muted);margin-bottom:28px;"></div>
+        <div style="display:flex;gap:12px;justify-content:center;">
+          <button class="btn btn-primary" id="retry-quiz-btn">Try Again</button>
+          <button class="btn btn-ghost" id="new-quiz-btn">New Quiz</button>
+        </div>
+      </div>
+      <div style="margin-top:24px;">
+        <div class="section-header mb-16">Review Answers</div>
+        <div id="review-list"></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- #main -->
+
+<script src="app.js"></script>
+</body>
+</html>
