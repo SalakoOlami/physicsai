@@ -2,7 +2,7 @@
    app.js — PhysicsAI Web App
    ============================================================ */
 
-const API = 'http://localhost:8000';
+const API = 'https://physicsai-5eih.onrender.com';
 
 /* ============================================================
    STORAGE HELPERS
