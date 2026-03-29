@@ -30,7 +30,7 @@ app = FastAPI(title="Physics RAG API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://tiny-wisp-c3d4e3.netlify.app"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
