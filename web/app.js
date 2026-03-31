@@ -5,6 +5,95 @@
 const API = 'https://physicsai-5eih.onrender.com';
 
 /* ============================================================
+   WEBGL LIGHTNING BACKGROUND
+   ============================================================ */
+(function initLightning() {
+  const canvas = document.getElementById('bg-canvas');
+  if (!canvas) return;
+
+  const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+  resize();
+  window.addEventListener('resize', resize);
+
+  const gl = canvas.getContext('webgl');
+  if (!gl) return;
+
+  const vert = `
+    attribute vec2 aPos;
+    void main() { gl_Position = vec4(aPos, 0.0, 1.0); }
+  `;
+
+  const frag = `
+    precision mediump float;
+    uniform vec2 iRes;
+    uniform float iTime;
+    #define OCT 10
+    vec3 hsv2rgb(vec3 c) {
+      vec3 rgb = clamp(abs(mod(c.x*6.+vec3(0.,4.,2.),6.)-3.)-1.,0.,1.);
+      return c.z*mix(vec3(1.),rgb,c.y);
+    }
+    float h12(vec2 p) {
+      vec3 p3=fract(vec3(p.xyx)*.1031);
+      p3+=dot(p3,p3.yzx+33.33);
+      return fract((p3.x+p3.y)*p3.z);
+    }
+    float h11(float p){p=fract(p*.1031);p*=p+33.33;p*=p+p;return fract(p);}
+    mat2 rot(float t){float c=cos(t),s=sin(t);return mat2(c,-s,s,c);}
+    float noise(vec2 p){
+      vec2 i=floor(p),f=fract(p);
+      float a=h12(i),b=h12(i+vec2(1,0)),c=h12(i+vec2(0,1)),d=h12(i+vec2(1,1));
+      vec2 t=smoothstep(0.,1.,f);
+      return mix(mix(a,b,t.x),mix(c,d,t.x),t.y);
+    }
+    float fbm(vec2 p){
+      float v=0.,a=.5;
+      for(int i=0;i<OCT;i++){v+=a*noise(p);p=rot(.45)*p*2.;a*=.5;}
+      return v;
+    }
+    void main(){
+      vec2 uv=gl_FragCoord.xy/iRes.xy;
+      uv=2.*uv-1.; uv.x*=iRes.x/iRes.y;
+      uv+=2.*fbm(uv*2.+.8*iTime*1.4)-1.;
+      float dist=abs(uv.x);
+      vec3 base=hsv2rgb(vec3(0.66,0.7,0.8));
+      vec3 col=base*pow(mix(0.,0.07,h11(iTime*1.4))/dist,1.0)*0.55;
+      gl_FragColor=vec4(col,1.0);
+    }
+  `;
+
+  function compile(src, type) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src); gl.compileShader(s);
+    return s;
+  }
+
+  const prog = gl.createProgram();
+  gl.attachShader(prog, compile(vert, gl.VERTEX_SHADER));
+  gl.attachShader(prog, compile(frag, gl.FRAGMENT_SHADER));
+  gl.linkProgram(prog); gl.useProgram(prog);
+
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]), gl.STATIC_DRAW);
+
+  const aPos = gl.getAttribLocation(prog, 'aPos');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+  const uRes  = gl.getUniformLocation(prog, 'iRes');
+  const uTime = gl.getUniformLocation(prog, 'iTime');
+  const t0 = performance.now();
+
+  (function render() {
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.uniform2f(uRes, canvas.width, canvas.height);
+    gl.uniform1f(uTime, (performance.now() - t0) / 1000);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    requestAnimationFrame(render);
+  })();
+})();
+
+/* ============================================================
    STORAGE HELPERS
    ============================================================ */
 const Store = {
@@ -194,6 +283,7 @@ const messages = document.getElementById('messages');
 const conceptsList = document.getElementById('concepts-list');
 
 let isStreaming = false;
+let chatHistory = []; // tracks conversation for context
 
 // Auto-resize textarea
 input.addEventListener('input', () => {
@@ -219,14 +309,33 @@ form.addEventListener('submit', (e) => {
 });
 
 document.getElementById('clear-btn').addEventListener('click', () => {
+  chatHistory = [];
   messages.innerHTML = `
     <div class="chat-welcome">
-      <span class="chat-welcome-icon">🔬</span>
+      <span class="chat-welcome-icon">⚛</span>
       <h2>What would you like to revise?</h2>
-      <p>Ask me anything from Chapters 9–12. I'll answer using your actual study materials.</p>
+      <p>Ask me anything from your A-Level Physics syllabus. I'll answer using your actual study materials.</p>
+      <div class="welcome-chips">
+        <div class="welcome-chip" data-q="Explain Young's modulus">Young's modulus</div>
+        <div class="welcome-chip" data-q="How does radioactive decay work?">Radioactive decay</div>
+        <div class="welcome-chip" data-q="Explain wave superposition">Wave superposition</div>
+        <div class="welcome-chip" data-q="What is electric field strength?">Electric fields</div>
+      </div>
     </div>`;
-  conceptsList.innerHTML = '<div class="concepts-empty">Concepts will appear here as you chat.</div>';
+  conceptsList.innerHTML = '<div class="concepts-empty">Concepts appear as you chat.</div>';
+  wireChips();
 });
+
+function wireChips() {
+  document.querySelectorAll('.welcome-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const q = chip.dataset.q;
+      navigate('tutor');
+      setTimeout(() => submitQuestion(q), 50);
+    });
+  });
+}
+wireChips();
 
 async function submitQuestion(question) {
   if (isStreaming) return;
@@ -257,7 +366,7 @@ async function submitQuestion(question) {
     const resp = await fetch(`${API}/api/query`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, top_k: 5, language: document.getElementById('lang-select').value }),
+      body: JSON.stringify({ question, top_k: 5, language: document.getElementById('lang-select').value, history: chatHistory.slice(-6) }),
     });
 
     if (!resp.ok) {
@@ -317,8 +426,19 @@ async function submitQuestion(question) {
     aiBubble.textContent = fullText;
   } finally {
     if (cursor) cursor.remove();
+    // Render markdown + math now that streaming is complete
+    if (aiBubble && fullText && !fullText.startsWith('Error:')) {
+      renderMarkdown(aiBubble, fullText);
+    }
     isStreaming = false;
     sendBtn.disabled = false;
+  }
+
+  // Save to conversation history
+  if (fullText && !fullText.startsWith('Error:')) {
+    chatHistory.push({ role: 'user', content: question });
+    chatHistory.push({ role: 'assistant', content: fullText });
+    if (chatHistory.length > 12) chatHistory = chatHistory.slice(-12);
   }
 
   // Render sources
@@ -441,6 +561,85 @@ function extractConcepts(text) {
 
 function scrollToBottom() {
   messages.scrollTop = messages.scrollHeight;
+}
+
+/* ============================================================
+   MARKDOWN + MATH RENDERING
+   ============================================================ */
+function preprocessMath(text) {
+  // Convert display math: [ ... ] containing LaTeX (not already \[ \])
+  text = text.replace(/(?<!\\)\[ *((?:[^\[\]]|\n)*?) *\](?!\])/g, (match, inner) => {
+    if (/[\\^_={}]/.test(inner) && inner.trim().length > 0) return '\\[' + inner + '\\]';
+    return match;
+  });
+
+  // Convert inline math: ( ... ) with balanced parens containing LaTeX
+  // Uses character scan so nested parens like \cos(\theta) are handled correctly
+  let result = '';
+  let i = 0;
+  while (i < text.length) {
+    const prev = i > 0 ? text[i - 1] : '';
+    if (text[i] === '(' && prev !== '\\') {
+      // Find matching closing paren (balanced)
+      let depth = 1, j = i + 1;
+      while (j < text.length && depth > 0) {
+        if (text[j] === '(' && text[j - 1] !== '\\') depth++;
+        else if (text[j] === ')' && text[j - 1] !== '\\') depth--;
+        j++;
+      }
+      if (depth === 0) {
+        const inner = text.slice(i + 1, j - 1);
+        if (inner.length <= 600 && /[\\^_{}]/.test(inner)) {
+          result += '\\(' + inner + '\\)';
+          i = j;
+          continue;
+        }
+      }
+    }
+    result += text[i];
+    i++;
+  }
+  return result;
+}
+
+function renderMarkdown(el, text) {
+  // Fix LLM using ( ) and [ ] instead of \( \) and \[ \] for math
+  text = preprocessMath(text);
+
+  // Protect math from marked.js — replace with placeholders before parsing
+  const mathBlocks = [];
+  const placeholder = (i) => `\x02MATH${i}\x03`;
+
+  // Display math first (longer delimiters)
+  text = text.replace(/\\\[[\s\S]*?\\\]/g, (match) => {
+    mathBlocks.push(match);
+    return placeholder(mathBlocks.length - 1);
+  });
+  // Inline math
+  text = text.replace(/\\\([\s\S]*?\\\)/g, (match) => {
+    mathBlocks.push(match);
+    return placeholder(mathBlocks.length - 1);
+  });
+
+  // Parse markdown (won't touch the placeholders)
+  marked.setOptions({ breaks: true, gfm: true });
+  el.innerHTML = marked.parse(text);
+
+  // Restore math blocks into the rendered HTML
+  el.innerHTML = el.innerHTML.replace(/\x02MATH(\d+)\x03/g, (_, i) => mathBlocks[+i]);
+
+  // Render math with KaTeX
+  if (window.renderMathInElement) {
+    renderMathInElement(el, {
+      delimiters: [
+        { left: '\\(', right: '\\)', display: false },
+        { left: '\\[', right: '\\]', display: true },
+        { left: '$$', right: '$$', display: true },
+        { left: '$', right: '$', display: false },
+      ],
+      throwOnError: false,
+    });
+  }
 }
 
 /* ============================================================
@@ -709,6 +908,169 @@ function clearTimerInterval() {
     Quiz.timerInterval = null;
   }
 }
+
+/* ============================================================
+   REVISION MODE — PAST PAPERS
+   ============================================================ */
+const Revision = {
+  papers: [],
+  selectedPaper: null,
+  timeLimitMinutes: 45,
+  timerInterval: null,
+  secondsRemaining: 0,
+};
+
+// Mode toggle tabs
+document.querySelectorAll('.mode-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    if (tab.dataset.mode === 'active-recall') {
+      switchToActiveRecallMode();
+    } else {
+      switchToPastPapersMode();
+    }
+  });
+});
+
+function switchToActiveRecallMode() {
+  document.getElementById('quiz-setup').style.display = '';
+  document.getElementById('revision-setup').style.display = 'none';
+  document.getElementById('revision-active').style.display = 'none';
+  document.getElementById('revision-markscheme').style.display = 'none';
+}
+
+function switchToPastPapersMode() {
+  document.getElementById('quiz-setup').style.display = 'none';
+  document.getElementById('quiz-active').style.display = 'none';
+  document.getElementById('quiz-results').style.display = 'none';
+  document.getElementById('revision-setup').style.display = '';
+  document.getElementById('revision-active').style.display = 'none';
+  document.getElementById('revision-markscheme').style.display = 'none';
+  if (!Revision.papers.length) loadPapers();
+}
+
+// Reset to Active Recall tab whenever the quiz page becomes active
+new MutationObserver((mutations) => {
+  for (const m of mutations) {
+    if (m.attributeName === 'class' && m.target.classList.contains('active')) {
+      document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('tab-active-recall').classList.add('active');
+      switchToActiveRecallMode();
+      revisionClearTimer();
+    }
+  }
+}).observe(document.getElementById('page-quiz'), { attributes: true });
+
+// Time limit selector
+document.querySelectorAll('.time-limit-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.time-limit-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    Revision.timeLimitMinutes = parseInt(btn.dataset.minutes, 10);
+  });
+});
+
+async function loadPapers() {
+  const select = document.getElementById('revision-paper-select');
+  const errDiv = document.getElementById('revision-papers-error');
+  select.innerHTML = '<option value="">Loading…</option>';
+  errDiv.style.display = 'none';
+  try {
+    const resp = await fetch(`${API}/api/papers`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    Revision.papers = data.papers || [];
+    if (!Revision.papers.length) {
+      select.innerHTML = '<option value="">No papers found — add PDFs to ./papers/</option>';
+      return;
+    }
+    select.innerHTML = '<option value="">Select a paper…</option>' +
+      Revision.papers.map(p =>
+        `<option value="${escapeHtml(p.name)}">${escapeHtml(p.name.replace(/_/g, ' '))}</option>`
+      ).join('');
+  } catch (err) {
+    select.innerHTML = '<option value="">Failed to load</option>';
+    errDiv.textContent = `Could not load papers: ${err.message}`;
+    errDiv.style.display = '';
+  }
+}
+
+document.getElementById('start-revision-btn').addEventListener('click', () => {
+  const select = document.getElementById('revision-paper-select');
+  const name = select.value;
+  if (!name) { select.focus(); return; }
+  Revision.selectedPaper = Revision.papers.find(p => p.name === name);
+  if (!Revision.selectedPaper) return;
+
+  document.getElementById('revision-paper-name').textContent =
+    Revision.selectedPaper.name.replace(/_/g, ' ');
+  document.getElementById('revision-pdf-iframe').src = `${API}${Revision.selectedPaper.questions_url}`;
+
+  document.getElementById('revision-setup').style.display = 'none';
+  document.getElementById('revision-active').style.display = '';
+
+  const timerDisplay = document.getElementById('revision-timer-display');
+  if (Revision.timeLimitMinutes > 0) {
+    Revision.secondsRemaining = Revision.timeLimitMinutes * 60;
+    timerDisplay.style.display = '';
+    timerDisplay.classList.remove('danger');
+    updateRevisionTimerDisplay();
+    Revision.timerInterval = setInterval(() => {
+      Revision.secondsRemaining--;
+      updateRevisionTimerDisplay();
+      if (Revision.secondsRemaining <= 300) timerDisplay.classList.add('danger');
+      if (Revision.secondsRemaining <= 0) { revisionClearTimer(); showMarkScheme(); }
+    }, 1000);
+  } else {
+    timerDisplay.style.display = 'none';
+  }
+});
+
+function updateRevisionTimerDisplay() {
+  const mins = Math.floor(Math.max(0, Revision.secondsRemaining) / 60);
+  const secs = Math.max(0, Revision.secondsRemaining) % 60;
+  document.getElementById('revision-timer-val').textContent =
+    `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+function revisionClearTimer() {
+  if (Revision.timerInterval) { clearInterval(Revision.timerInterval); Revision.timerInterval = null; }
+}
+
+document.getElementById('revision-submit-btn').addEventListener('click', showMarkScheme);
+
+function showMarkScheme() {
+  revisionClearTimer();
+  if (!Revision.selectedPaper) return;
+  document.getElementById('revision-ms-paper-name').textContent =
+    Revision.selectedPaper.name.replace(/_/g, ' ') + ' — Mark Scheme';
+  document.getElementById('revision-ms-iframe').src = `${API}${Revision.selectedPaper.markscheme_url}`;
+  document.getElementById('revision-active').style.display = 'none';
+  document.getElementById('revision-markscheme').style.display = '';
+}
+
+function requestFullscreen(el) {
+  const fn = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+  if (fn) fn.call(el);
+}
+
+document.getElementById('revision-expand-btn').addEventListener('click', () => {
+  requestFullscreen(document.getElementById('revision-pdf-iframe'));
+});
+
+document.getElementById('revision-ms-expand-btn').addEventListener('click', () => {
+  requestFullscreen(document.getElementById('revision-ms-iframe'));
+});
+
+document.getElementById('revision-done-btn').addEventListener('click', () => {
+  revisionClearTimer();
+  document.getElementById('revision-pdf-iframe').src = '';
+  document.getElementById('revision-ms-iframe').src = '';
+  Revision.selectedPaper = null;
+  document.getElementById('revision-markscheme').style.display = 'none';
+  document.getElementById('revision-setup').style.display = '';
+});
 
 /* ============================================================
    INIT

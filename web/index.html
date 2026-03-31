@@ -7,35 +7,59 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
 </head>
 <body>
+
+<!-- WebGL Lightning Canvas -->
+<canvas id="bg-canvas"></canvas>
 
 <!-- ===== SIDEBAR ===== -->
 <nav id="sidebar">
   <div class="sidebar-logo">
-    <div class="logo-title">⚛ PhysicsAI</div>
-    <div class="logo-sub">A-Level Revision Tutor</div>
+    <svg viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M11 2L4 8.5V13.5L11 20L18 13.5V8.5L11 2Z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+      <path d="M11 6L7 9.5V12.5L11 16L15 12.5V9.5L11 6Z" fill="white" fill-opacity="0.3"/>
+    </svg>
   </div>
 
-  <a class="nav-link active" data-page="dashboard">
-    <span class="nav-icon">🏠</span> Dashboard
-  </a>
-  <a class="nav-link" data-page="tutor">
-    <span class="nav-icon">🤖</span> AI Tutor
-  </a>
-  <a class="nav-link" data-page="library">
-    <span class="nav-icon">📚</span> Library
-  </a>
-  <a class="nav-link" data-page="progress">
-    <span class="nav-icon">📊</span> Progress
-  </a>
-  <a class="nav-link" data-page="quiz">
-    <span class="nav-icon">🧠</span> Quiz
+  <a class="nav-link active" data-page="dashboard" data-tooltip="Dashboard">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
+      <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
+    </svg>
   </a>
 
-  <div class="sidebar-footer">
-    Powered by Gemini + Claude
-  </div>
+  <a class="nav-link" data-page="tutor" data-tooltip="AI Tutor">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      <circle cx="9" cy="10" r="1" fill="currentColor"/><circle cx="12" cy="10" r="1" fill="currentColor"/><circle cx="15" cy="10" r="1" fill="currentColor"/>
+    </svg>
+  </a>
+
+  <a class="nav-link" data-page="library" data-tooltip="Library">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+    </svg>
+  </a>
+
+  <a class="nav-link" data-page="progress" data-tooltip="Progress">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+    </svg>
+  </a>
+
+  <a class="nav-link" data-page="quiz" data-tooltip="Quiz">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+  </a>
+
+  <div class="sidebar-footer" title="Gemini + Claude">AI</div>
 </nav>
 
 <!-- ===== MAIN CONTENT ===== -->
@@ -44,11 +68,10 @@
   <!-- ============ DASHBOARD ============ -->
   <div id="page-dashboard" class="page active">
     <div class="page-header">
-      <div class="page-title">Welcome back 👋</div>
-      <div class="page-sub">A-Level Physics · Chapters 9–12</div>
+      <div class="page-title">Welcome back</div>
+      <div class="page-sub">A-Level Physics · Your personal AI revision companion</div>
     </div>
 
-    <!-- Stats -->
     <div class="stats-row">
       <div class="stat-card">
         <div class="stat-value" id="stat-questions">0</div>
@@ -60,45 +83,44 @@
       </div>
       <div class="stat-card">
         <div class="stat-value" id="stat-streak">0</div>
-        <div class="stat-label">Day Streak 🔥</div>
+        <div class="stat-label">Day Streak</div>
       </div>
     </div>
 
-    <!-- Hero CTA -->
     <div class="hero-card">
       <div>
         <div class="hero-title">Start Revising Now</div>
-        <div class="hero-sub">Ask the AI tutor anything about your A-Level Physics syllabus. Get instant, clear answers backed by your study materials.</div>
+        <div class="hero-sub">Ask the AI tutor anything about your A-Level Physics syllabus. Get instant, clear answers backed by your actual study materials.</div>
       </div>
       <a class="btn btn-primary" data-page="tutor" style="margin-left:32px;flex-shrink:0;">
-        Launch AI Tutor →
+        Launch AI Tutor
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M8 3L13 8L8 13M13 8H3" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
       </a>
     </div>
 
-    <!-- Recent questions -->
     <div class="section-header">Recent Questions</div>
     <div id="recent-list" class="recent-list">
-      <div class="text-muted text-sm" style="padding:12px 0;">No questions yet. Ask your first one!</div>
+      <div class="text-muted text-sm" style="padding:12px 0;">No questions yet — ask your first one!</div>
     </div>
   </div>
 
   <!-- ============ AI TUTOR ============ -->
   <div id="page-tutor" class="page">
 
-    <!-- Left panel: Key concepts -->
     <div id="concepts-panel">
       <div class="concepts-title">Key Concepts</div>
       <div id="concepts-list">
-        <div class="concepts-empty">Concepts will appear here as you chat.</div>
+        <div class="concepts-empty">Concepts appear as you chat.</div>
       </div>
     </div>
 
-    <!-- Right: chat -->
     <div id="chat-area">
       <div id="chat-header">
         <div>
-          <div class="chat-header-title">AI Physics Tutor</div>
-          <div class="chat-header-sub">Ask anything about your syllabus</div>
+          <div class="chat-header-title">Physics Oracle</div>
+          <div class="chat-header-sub">Powered by your study materials</div>
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
           <select id="lang-select">
@@ -106,26 +128,32 @@
             <option value="zh">🇨🇳 中文</option>
             <option value="ko">🇰🇷 한국어</option>
           </select>
-          <button class="btn btn-ghost" id="clear-btn" style="font-size:12px;padding:8px 14px;">Clear chat</button>
+          <button class="btn btn-ghost" id="clear-btn" style="font-size:12px;padding:7px 14px;">Clear</button>
         </div>
       </div>
 
       <div id="messages">
         <div class="chat-welcome">
-          <span class="chat-welcome-icon">🔬</span>
+          <span class="chat-welcome-icon">⚛</span>
           <h2>What would you like to revise?</h2>
-          <p>Ask me anything from Chapters 9–12. I'll answer using your actual study materials.</p>
+          <p>Ask me anything from your A-Level Physics syllabus. I'll answer using your actual study materials.</p>
+          <div class="welcome-chips">
+            <div class="welcome-chip" data-q="Explain Young's modulus">Young's modulus</div>
+            <div class="welcome-chip" data-q="How does radioactive decay work?">Radioactive decay</div>
+            <div class="welcome-chip" data-q="Explain wave superposition">Wave superposition</div>
+            <div class="welcome-chip" data-q="What is electric field strength?">Electric fields</div>
+          </div>
         </div>
       </div>
 
       <div id="input-area">
         <form id="input-form">
-          <textarea
-            id="question-input"
-            placeholder="Ask a question, e.g. 'Explain Young's modulus…'"
-            rows="1"
-          ></textarea>
-          <button type="submit" id="send-btn">➤</button>
+          <textarea id="question-input" placeholder="Ask a question about physics…" rows="1"></textarea>
+          <button type="submit" id="send-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
         </form>
       </div>
     </div>
@@ -134,29 +162,25 @@
   <!-- ============ LIBRARY ============ -->
   <div id="page-library" class="page">
     <div class="page-header">
-      <div class="page-title">Study Library</div>
+      <div class="page-title">Research Archive</div>
       <div class="page-sub">All documents ingested into your knowledge base</div>
     </div>
     <div id="library-content">
-      <div class="loading-state">Loading library…</div>
+      <div class="loading-state">Loading archive…</div>
     </div>
   </div>
 
   <!-- ============ PROGRESS ============ -->
   <div id="page-progress" class="page">
     <div class="page-header">
-      <div class="page-title">Your Progress</div>
+      <div class="page-title">Scientific Metrics</div>
       <div class="page-sub">Track your revision journey</div>
     </div>
-
     <div class="progress-grid">
-      <!-- Left: badges -->
       <div>
         <div class="section-header mb-16">Achievements</div>
-        <div class="badges-grid" id="badges-grid"><!-- filled by JS --></div>
+        <div class="badges-grid" id="badges-grid"></div>
       </div>
-
-      <!-- Right: history -->
       <div>
         <div class="section-header mb-16">Question History</div>
         <div id="history-list" class="history-list">
@@ -169,18 +193,22 @@
   <!-- ============ QUIZ ============ -->
   <div id="page-quiz" class="page">
     <div class="page-header">
-      <div class="page-title">Quiz Mode 🧠</div>
+      <div class="page-title">Quiz Mode</div>
       <div class="page-sub">Test yourself with A-Level style questions</div>
     </div>
 
-    <!-- Setup screen -->
+    <!-- Mode toggle -->
+    <div id="quiz-mode-toggle" class="quiz-mode-toggle">
+      <button class="mode-tab active" id="tab-active-recall" data-mode="active-recall">Active Recall</button>
+      <button class="mode-tab" id="tab-past-papers" data-mode="past-papers">Past Papers</button>
+    </div>
+
     <div id="quiz-setup">
       <div class="card" style="max-width:520px;">
         <div style="margin-bottom:20px;">
           <label class="quiz-label">Topic</label>
-          <input id="quiz-topic" class="quiz-input" type="text" placeholder="e.g. Young's modulus, radioactive decay, waves…" />
+          <input id="quiz-topic" class="quiz-input" type="text" placeholder="e.g. Young's modulus, radioactive decay…" />
         </div>
-
         <div style="margin-bottom:20px;">
           <label class="quiz-label">Difficulty</label>
           <div class="diff-row">
@@ -189,26 +217,23 @@
             <button class="diff-btn" data-diff="hard">Hard</button>
           </div>
         </div>
-
         <div style="margin-bottom:20px;">
-          <label class="quiz-label">Number of questions</label>
+          <label class="quiz-label">Questions</label>
           <div class="diff-row">
             <button class="num-btn" data-num="5">5</button>
             <button class="num-btn active" data-num="10">10</button>
             <button class="num-btn" data-num="15">15</button>
           </div>
         </div>
-
         <div style="margin-bottom:24px;">
           <label class="quiz-label">Timer (per question)</label>
           <div class="diff-row">
-            <button class="timer-btn active" data-timer="0">No timer</button>
+            <button class="timer-btn active" data-timer="0">None</button>
             <button class="timer-btn" data-timer="30">30s</button>
             <button class="timer-btn" data-timer="60">1 min</button>
             <button class="timer-btn" data-timer="90">90s</button>
           </div>
         </div>
-
         <button class="btn btn-primary full-width" id="start-quiz-btn">Generate Quiz →</button>
         <div id="quiz-loading" style="display:none;text-align:center;margin-top:16px;color:var(--muted);font-size:14px;">
           <span class="thinking-dots"><span>.</span><span>.</span><span>.</span></span> Generating questions…
@@ -216,16 +241,13 @@
       </div>
     </div>
 
-    <!-- Active quiz screen -->
     <div id="quiz-active" style="display:none;max-width:680px;">
       <div class="quiz-topbar">
         <div class="quiz-progress-text">Question <span id="q-current">1</span> of <span id="q-total">10</span></div>
         <div id="quiz-timer-display" class="quiz-timer" style="display:none;">⏱ <span id="timer-val">60</span>s</div>
         <button class="btn btn-ghost" id="quit-quiz-btn" style="font-size:12px;padding:6px 12px;">Quit</button>
       </div>
-
       <div class="quiz-progress-bar"><div id="quiz-progress-fill" class="quiz-progress-fill"></div></div>
-
       <div class="card" style="margin-top:20px;">
         <div id="question-text" class="question-text"></div>
         <div id="options-list" class="options-list"></div>
@@ -234,10 +256,9 @@
       </div>
     </div>
 
-    <!-- Results screen -->
     <div id="quiz-results" style="display:none;max-width:520px;">
       <div class="card" style="text-align:center;padding:40px;">
-        <div id="results-emoji" style="font-size:52px;margin-bottom:12px;"></div>
+        <div id="results-emoji" style="font-size:52px;margin-bottom:12px;filter:drop-shadow(0 0 20px rgba(108,99,255,0.4));"></div>
         <div id="results-score" style="font-size:32px;font-weight:700;color:var(--text);margin-bottom:6px;"></div>
         <div id="results-msg" style="font-size:14px;color:var(--muted);margin-bottom:28px;"></div>
         <div style="display:flex;gap:12px;justify-content:center;">
@@ -250,6 +271,67 @@
         <div id="review-list"></div>
       </div>
     </div>
+
+    <!-- ===== REVISION MODE (PAST PAPERS) ===== -->
+
+    <!-- Setup -->
+    <div id="revision-setup" style="display:none;">
+      <div class="card" style="max-width:520px;">
+        <div style="margin-bottom:20px;">
+          <label class="quiz-label">Past Paper</label>
+          <select id="revision-paper-select" class="quiz-input revision-select">
+            <option value="">Loading papers…</option>
+          </select>
+          <div id="revision-papers-error" style="display:none;color:var(--danger);font-size:12px;margin-top:6px;"></div>
+        </div>
+        <div style="margin-bottom:24px;">
+          <label class="quiz-label">Time Limit</label>
+          <div class="diff-row">
+            <button class="time-limit-btn active" data-minutes="45">45 min</button>
+            <button class="time-limit-btn" data-minutes="60">1 hr</button>
+            <button class="time-limit-btn" data-minutes="90">1.5 hr</button>
+            <button class="time-limit-btn" data-minutes="120">2 hr</button>
+            <button class="time-limit-btn" data-minutes="0">No limit</button>
+          </div>
+        </div>
+        <button class="btn btn-primary full-width" id="start-revision-btn">Start Revision →</button>
+      </div>
+    </div>
+
+    <!-- Active session -->
+    <div id="revision-active" style="display:none;max-width:1000px;">
+      <div class="revision-topbar">
+        <div id="revision-paper-name" class="revision-paper-name"></div>
+        <div id="revision-timer-display" class="quiz-timer" style="display:none;">⏱ <span id="revision-timer-val">00:00</span></div>
+        <button class="btn btn-ghost revision-expand-btn" id="revision-expand-btn" title="Fullscreen">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+          </svg>
+        </button>
+        <button class="btn btn-primary" id="revision-submit-btn">Submit &amp; View Mark Scheme</button>
+      </div>
+      <div class="revision-pdf-container">
+        <iframe id="revision-pdf-iframe" class="revision-pdf-viewer" title="Past Paper PDF" src="" allowfullscreen></iframe>
+      </div>
+    </div>
+
+    <!-- Mark scheme view -->
+    <div id="revision-markscheme" style="display:none;max-width:1000px;">
+      <div class="revision-topbar">
+        <div id="revision-ms-paper-name" class="revision-paper-name"></div>
+        <div class="revision-done-badge">Mark Scheme</div>
+        <button class="btn btn-ghost revision-expand-btn" id="revision-ms-expand-btn" title="Fullscreen">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+          </svg>
+        </button>
+        <button class="btn btn-ghost" id="revision-done-btn">Done</button>
+      </div>
+      <div class="revision-pdf-container">
+        <iframe id="revision-ms-iframe" class="revision-pdf-viewer" title="Mark Scheme PDF" src="" allowfullscreen></iframe>
+      </div>
+    </div>
+
   </div>
 
 </div><!-- #main -->

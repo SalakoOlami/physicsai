@@ -30,28 +30,58 @@ app = FastAPI(title="Physics RAG API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://tiny-wisp-c3d4e3.netlify.app"],
+    allow_origins=["https://tiny-wisp-c3d4e3.netlify.app", "http://localhost:3000", "http://127.0.0.1:3000"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path as _Path
+
+_PAPERS_DIR = _Path("./papers")
+_PAPERS_DIR.mkdir(exist_ok=True)
+app.mount("/papers", StaticFiles(directory=_PAPERS_DIR), name="papers")
+
 # Initialise Pinecone client once at startup
 _pc = get_client()
 
-_GREETINGS = {"hi", "hii", "hello", "hey", "heyy", "heyyy", "yo", "sup", "hola", "howdy", "what's up", "whats up"}
+# Simple in-memory embedding cache (survives for the lifetime of the process)
+_embed_cache: dict[str, list[float]] = {}
+
+def _cached_embed(question: str) -> list[float]:
+    key = question.strip().lower()
+    if key not in _embed_cache:
+        _embed_cache[key] = embed_query(question)
+        if len(_embed_cache) > 500:          # cap memory usage
+            _embed_cache.pop(next(iter(_embed_cache)))
+    return _embed_cache[key]
+
+_GREETING_STARTERS = {"hi", "hey", "hello", "yo", "sup", "bro", "wassup", "wsg", "hola",
+                      "howdy", "morning", "evening", "afternoon", "heyy", "heyyy", "hii"}
 
 def _is_greeting(text: str) -> bool:
-    return text.strip().lower().rstrip("!?.") in _GREETINGS
+    cleaned = text.strip().lower().rstrip("!?.")
+    words = cleaned.split()
+    # Short casual message (≤6 words) that starts with or is a greeting word
+    if not words:
+        return False
+    return len(words) <= 6 and words[0] in _GREETING_STARTERS
 
 
 # ---------------------------------------------------------------------------
 # Models
 # ---------------------------------------------------------------------------
 
+class ChatMessage(BaseModel):
+    role: str  # "user" or "assistant"
+    content: str
+
+
 class QueryRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=1000)
-    top_k: int = Field(5, ge=1, le=20)
+    top_k: int = Field(3, ge=1, le=20)
     language: str = Field("en", pattern=r"^[a-z]{2}$")
+    history: list[ChatMessage] = Field(default_factory=list)
 
 
 class QuizRequest(BaseModel):
@@ -64,6 +94,14 @@ class QuizRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
+@app.on_event("startup")
+async def warmup():
+    """Pre-warm the Gemini embedding connection so the first user query isn't slow."""
+    try:
+        _cached_embed("warmup")
+    except Exception:
+        pass  # Don't crash startup if warmup fails
 
 @app.get("/api/health")
 def health():
@@ -94,9 +132,25 @@ def query(req: QueryRequest):
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
             return
 
-        # 1. Embed the query
+        # 1. Build search query — enrich vague follow-ups with the best topic from history
+        _VAGUE = {"this", "it", "that", "these", "those", "same", "more", "answer",
+                  "question", "questions", "solution", "working", "steps", "hint", "help",
+                  "example", "examples", "elaborate", "further", "continue", "again", "another"}
+        _FILLER = {"can", "u", "you", "give", "me", "more", "be", "explanable", "explain", "tell", "about",
+                   "a", "an", "the", "is", "what", "how", "why", "ok", "okay", "sure", "yes", "no", "and"}
+        words = set(req.question.lower().split())
+        is_vague = len(req.question.split()) <= 12 and bool(words & _VAGUE)
+        if is_vague and req.history:
+            # Find the most substantive user message (longest, not a filler phrase)
+            user_msgs = [m.content for m in req.history if m.role == "user"]
+            topic_msg = max(user_msgs, key=lambda m: len(set(m.lower().split()) - _FILLER), default=None)
+            search_query = f"{topic_msg} {req.question}" if topic_msg else req.question
+        else:
+            search_query = req.question
+
+        # Embed the query (cached)
         try:
-            q_vec = embed_query(req.question)
+            q_vec = _cached_embed(search_query)
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
             return
@@ -108,10 +162,10 @@ def query(req: QueryRequest):
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
             return
 
-        # Filter out garbled/unreadable chunks
+        # Filter out garbled/unreadable chunks and low-relevance results
         matches = [m for m in matches if _is_readable(m.get("text", ""))]
         if not matches:
-            # No good context — fall back to conversational response
+            # No readable context — fall back to LLM general knowledge
             for delta in yield_chat(req.question, req.language):
                 yield f"data: {json.dumps({'type': 'chunk', 'content': delta})}\n\n"
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
@@ -119,7 +173,8 @@ def query(req: QueryRequest):
 
         # 3. Stream answer chunks
         try:
-            for delta in yield_answer(req.question, matches, req.language):
+            history = [{"role": m.role, "content": m.content} for m in req.history[-6:]]
+            for delta in yield_answer(req.question, matches, req.language, history):
                 payload = json.dumps({"type": "chunk", "content": delta})
                 yield f"data: {payload}\n\n"
         except Exception as e:
@@ -197,3 +252,66 @@ def quiz(req: QuizRequest):
         raise HTTPException(status_code=500, detail=f"Quiz generation error: {e}")
 
     return {"questions": questions}
+
+
+@app.get("/api/papers")
+def list_papers():
+    """Scan ./papers/ folder (and subfolders) and return paired question + mark scheme PDFs."""
+    papers_dir = _Path("./papers")
+    if not papers_dir.exists():
+        return {"papers": []}
+
+    results = []
+
+    # Collect all folders to scan: root + immediate subdirectories
+    folders = [papers_dir] + [d for d in sorted(papers_dir.iterdir()) if d.is_dir()]
+
+    for folder in folders:
+        pdfs = [f for f in folder.iterdir() if f.is_file() and f.suffix.lower() == ".pdf"]
+
+        # Split into question papers and mark schemes by filename keywords or _Q/_MS suffix
+        q_files = [f for f in pdfs if "question-paper" in f.name.lower()
+                   or "question_paper" in f.name.lower() or f.stem.endswith("_Q")]
+        ms_files = [f for f in pdfs if "mark-scheme" in f.name.lower()
+                    or "mark_scheme" in f.name.lower() or f.stem.endswith("_MS")]
+
+        year = folder.name if folder != papers_dir else ""
+
+        for q_file in q_files:
+            # Extract topic suffix from question paper filename
+            stem = q_file.stem.lower()
+            topic_suffix = None
+            for marker in ["question-paper-", "question_paper_", "question-paper", "question_paper"]:
+                if marker in stem:
+                    topic_suffix = stem.split(marker, 1)[1]
+                    break
+
+            # Find matching mark scheme by topic suffix
+            matched_ms = None
+            if topic_suffix:
+                for ms in ms_files:
+                    if topic_suffix in ms.stem.lower():
+                        matched_ms = ms
+                        break
+            if matched_ms is None and ms_files:
+                matched_ms = ms_files[0]  # fallback: pair with first MS in folder
+
+            if matched_ms is None:
+                continue
+
+            # Build a readable display name
+            if topic_suffix:
+                topic = topic_suffix.replace("-", " ").replace("_", " ").title()
+            else:
+                topic = q_file.stem.replace("-", " ").replace("_", " ").title()
+
+            display_name = f"{year} — {topic}" if year else topic
+
+            rel = lambda f: f"/papers/{folder.name}/{f.name}" if folder != papers_dir else f"/papers/{f.name}"
+            results.append({
+                "name": display_name,
+                "questions_url": rel(q_file),
+                "markscheme_url": rel(matched_ms),
+            })
+
+    return {"papers": sorted(results, key=lambda x: x["name"])}
