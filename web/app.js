@@ -214,18 +214,26 @@ async function loadLibrary() {
     container.innerHTML = `<div class="library-grid">${sources.map(s => {
       const mod = escapeHtml(s.modality || 'unknown');
       const pages = parseInt(s.page_count, 10) || 1;
+      const openBtn = s.url
+        ? `<button class="btn btn-sm" onclick="openResource('${escapeHtml(s.url)}')">Open</button>`
+        : '';
       return `
       <div class="library-card">
         <div class="library-card-title" title="${escapeHtml(s.source)}">${escapeHtml(s.source)}</div>
         <div class="library-card-meta">
           <span class="badge badge-${mod}">${mod}</span>
           <span>${pages} page${pages !== 1 ? 's' : ''}</span>
+          ${openBtn}
         </div>
       </div>
     `;}).join('')}</div>`;
   } catch (err) {
     container.innerHTML = `<div class="empty-state" style="color:var(--danger)">Could not load library: ${err.message}<br><br>Make sure the backend is running:<br><code style="font-size:12px;color:var(--muted)">uvicorn server:app --reload</code></div>`;
   }
+}
+
+function openResource(url) {
+  window.open(url, '_blank');
 }
 
 /* ============================================================
@@ -996,6 +1004,19 @@ async function loadPapers() {
   }
 }
 
+// Preload iframes as soon as user picks a paper so Google Drive is ready by the time they click Start
+document.getElementById('revision-paper-select').addEventListener('change', () => {
+  const select = document.getElementById('revision-paper-select');
+  const name = select.value;
+  if (!name) return;
+  const paper = Revision.papers.find(p => p.name === name);
+  if (!paper) return;
+  const qUrl = paper.questions_url;
+  const msUrl = paper.markscheme_url;
+  document.getElementById('revision-pdf-iframe').src = qUrl.startsWith('http') ? qUrl : `${API}${qUrl}`;
+  document.getElementById('revision-ms-iframe').src = msUrl.startsWith('http') ? msUrl : `${API}${msUrl}`;
+});
+
 document.getElementById('start-revision-btn').addEventListener('click', () => {
   const select = document.getElementById('revision-paper-select');
   const name = select.value;
@@ -1005,7 +1026,11 @@ document.getElementById('start-revision-btn').addEventListener('click', () => {
 
   document.getElementById('revision-paper-name').textContent =
     Revision.selectedPaper.name.replace(/_/g, ' ');
-  document.getElementById('revision-pdf-iframe').src = `${API}${Revision.selectedPaper.questions_url}`;
+  const qUrl = Revision.selectedPaper.questions_url;
+  // Only update src if not already preloaded
+  const iframe = document.getElementById('revision-pdf-iframe');
+  const expectedSrc = qUrl.startsWith('http') ? qUrl : `${API}${qUrl}`;
+  if (iframe.src !== expectedSrc) iframe.src = expectedSrc;
 
   document.getElementById('revision-setup').style.display = 'none';
   document.getElementById('revision-active').style.display = '';
@@ -1045,7 +1070,10 @@ function showMarkScheme() {
   if (!Revision.selectedPaper) return;
   document.getElementById('revision-ms-paper-name').textContent =
     Revision.selectedPaper.name.replace(/_/g, ' ') + ' — Mark Scheme';
-  document.getElementById('revision-ms-iframe').src = `${API}${Revision.selectedPaper.markscheme_url}`;
+  const msUrl = Revision.selectedPaper.markscheme_url;
+  const msIframe = document.getElementById('revision-ms-iframe');
+  const expectedMsSrc = msUrl.startsWith('http') ? msUrl : `${API}${msUrl}`;
+  if (msIframe.src !== expectedMsSrc) msIframe.src = expectedMsSrc;
   document.getElementById('revision-active').style.display = 'none';
   document.getElementById('revision-markscheme').style.display = '';
 }
