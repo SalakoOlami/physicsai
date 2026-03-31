@@ -254,64 +254,53 @@ def quiz(req: QuizRequest):
     return {"questions": questions}
 
 
+def _gdrive_preview(file_id: str) -> str:
+    return f"https://drive.google.com/file/d/{file_id}/preview"
+
+def _extract_id(url: str) -> str:
+    return url.split("/d/")[1].split("/")[0]
+
+_GDRIVE_PAPERS = [
+    {
+        "name": "2018 — Breadth In Physics",
+        "questions_url": _gdrive_preview(_extract_id("https://drive.google.com/file/d/1_wkxWixUrwFJXgaTksFx3sTXcqP2e-uE/view")),
+        "markscheme_url": _gdrive_preview(_extract_id("https://drive.google.com/file/d/1UvupOzXARf2ZN1S75WAwG2po4mZ9vcpy/view")),
+    },
+    {
+        "name": "2019 — Breadth In Physics",
+        "questions_url": _gdrive_preview(_extract_id("https://drive.google.com/file/d/1Uu_u2kTqY8H3hoO4mZCsm-rKxoYq8B33/view")),
+        "markscheme_url": _gdrive_preview(_extract_id("https://drive.google.com/file/d/1AhQW81K61Q6XguQrKdmwykYGcCAy7TDO/view")),
+    },
+    {
+        "name": "2020 — Breadth In Physics",
+        "questions_url": _gdrive_preview(_extract_id("https://drive.google.com/file/d/1IBTarByuPdhQu8PToDIyrZNOryPSYZpZ/view")),
+        "markscheme_url": _gdrive_preview(_extract_id("https://drive.google.com/file/d/1pl3C3TIA6ypy2wKOhOjUVp6IOY12xt8j/view")),
+    },
+    {
+        "name": "2021 — Breadth In Physics",
+        "questions_url": _gdrive_preview(_extract_id("https://drive.google.com/file/d/15SMbGaz4eq40aTXbpHt2KLc4PQcoPtK2/view")),
+        "markscheme_url": _gdrive_preview(_extract_id("https://drive.google.com/file/d/1l7q-6Im7Y_cjuaCGrP82ZSfeP8eeXOFT/view")),
+    },
+    {
+        "name": "2022 — Breadth In Physics",
+        "questions_url": _gdrive_preview(_extract_id("https://drive.google.com/file/d/1SE860PhZEETnRYn1laLkkkR5wS2sFGAr/view")),
+        "markscheme_url": _gdrive_preview(_extract_id("https://drive.google.com/file/d/1TXh1DbawL7Svel7s7sZU4JlmkFCo6H9B/view")),
+    },
+    {
+        "name": "2023 — Breadth In Physics",
+        "questions_url": _gdrive_preview(_extract_id("https://drive.google.com/file/d/12UfI7i5clKqI7Bn9g0P93fBK3zbACwNn/view")),
+        "markscheme_url": _gdrive_preview(_extract_id("https://drive.google.com/file/d/1yKiIYHIV7OwAtXCslQfJvsfP_1MAYkqx/view")),
+    },
+    {
+        "name": "2024 — Breadth In Physics",
+        "questions_url": _gdrive_preview(_extract_id("https://drive.google.com/file/d/1aSnms7-leYjh9MtNcOqrxwJWsBMTx0am/view")),
+        "markscheme_url": _gdrive_preview(_extract_id("https://drive.google.com/file/d/1qgNkHOjEmfRVjX-BO8DMmDstNeTEsMQl/view")),
+    },
+]
+
 @app.get("/api/papers")
 def list_papers():
-    """Scan ./papers/ folder (and subfolders) and return paired question + mark scheme PDFs."""
-    papers_dir = _Path("./papers")
-    if not papers_dir.exists():
-        return {"papers": []}
-
-    results = []
-
-    # Collect all folders to scan: root + immediate subdirectories
-    folders = [papers_dir] + [d for d in sorted(papers_dir.iterdir()) if d.is_dir()]
-
-    for folder in folders:
-        pdfs = [f for f in folder.iterdir() if f.is_file() and f.suffix.lower() == ".pdf"]
-
-        # Split into question papers and mark schemes by filename keywords or _Q/_MS suffix
-        q_files = [f for f in pdfs if "question-paper" in f.name.lower()
-                   or "question_paper" in f.name.lower() or f.stem.endswith("_Q")]
-        ms_files = [f for f in pdfs if "mark-scheme" in f.name.lower()
-                    or "mark_scheme" in f.name.lower() or f.stem.endswith("_MS")]
-
-        year = folder.name if folder != papers_dir else ""
-
-        for q_file in q_files:
-            # Extract topic suffix from question paper filename
-            stem = q_file.stem.lower()
-            topic_suffix = None
-            for marker in ["question-paper-", "question_paper_", "question-paper", "question_paper"]:
-                if marker in stem:
-                    topic_suffix = stem.split(marker, 1)[1]
-                    break
-
-            # Find matching mark scheme by topic suffix
-            matched_ms = None
-            if topic_suffix:
-                for ms in ms_files:
-                    if topic_suffix in ms.stem.lower():
-                        matched_ms = ms
-                        break
-            if matched_ms is None and ms_files:
-                matched_ms = ms_files[0]  # fallback: pair with first MS in folder
-
-            if matched_ms is None:
-                continue
-
-            # Build a readable display name
-            if topic_suffix:
-                topic = topic_suffix.replace("-", " ").replace("_", " ").title()
-            else:
-                topic = q_file.stem.replace("-", " ").replace("_", " ").title()
-
-            display_name = f"{year} — {topic}" if year else topic
-
-            rel = lambda f: f"/papers/{folder.name}/{f.name}" if folder != papers_dir else f"/papers/{f.name}"
-            results.append({
-                "name": display_name,
-                "questions_url": rel(q_file),
-                "markscheme_url": rel(matched_ms),
-            })
+    """Return paired question + mark scheme PDFs hosted on Google Drive."""
+    results = _GDRIVE_PAPERS
 
     return {"papers": sorted(results, key=lambda x: x["name"])}
