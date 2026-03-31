@@ -68,7 +68,7 @@ def main():
         mapping[name] = preview_url
         print(f"  {name}")
 
-    OUTPUT.write_text(json.dumps(mapping, indent=2, ensure_ascii=False))
+    OUTPUT.write_text(json.dumps(mapping, indent=2, ensure_ascii=True), encoding="utf-8")
     print(f"\nSaved to {OUTPUT}")
 
 
