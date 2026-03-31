@@ -201,6 +201,7 @@
     <div id="quiz-mode-toggle" class="quiz-mode-toggle">
       <button class="mode-tab active" id="tab-active-recall" data-mode="active-recall">Active Recall</button>
       <button class="mode-tab" id="tab-past-papers" data-mode="past-papers">Past Papers</button>
+      <button class="mode-tab" id="tab-ta-practice" data-mode="ta-practice">TA Practice</button>
     </div>
 
     <div id="quiz-setup">
@@ -329,6 +330,96 @@
       </div>
       <div class="revision-pdf-container">
         <iframe id="revision-ms-iframe" class="revision-pdf-viewer" title="Mark Scheme PDF" src="" allowfullscreen></iframe>
+      </div>
+    </div>
+
+    <!-- TA Practice: Setup -->
+    <div id="ta-setup" style="display:none;">
+      <div class="card" style="max-width:520px;">
+        <div style="margin-bottom:20px;">
+          <label class="quiz-label">Select TA</label>
+          <select id="ta-select" class="quiz-input">
+            <option value="">— Choose a TA —</option>
+          </select>
+        </div>
+
+        <div id="ta-info-banner" class="ta-info-banner" style="display:none;margin-bottom:16px;">
+          <div class="ta-info-chapter" id="ta-info-chapter"></div>
+          <div class="ta-info-topic" id="ta-info-topic"></div>
+        </div>
+
+        <div style="margin-bottom:20px;">
+          <label class="quiz-label">Mode</label>
+          <div class="diff-row">
+            <button class="diff-btn active" data-ta-mode="view">View Paper</button>
+            <button class="diff-btn" data-ta-mode="practice">Practice MCQs</button>
+          </div>
+        </div>
+
+        <div id="ta-practice-options" style="display:none;">
+          <div style="margin-bottom:20px;">
+            <label class="quiz-label">Difficulty</label>
+            <div class="diff-row">
+              <button class="diff-btn" data-diff="easy">Easy</button>
+              <button class="diff-btn active" data-diff="medium">Medium</button>
+              <button class="diff-btn" data-diff="hard">Hard</button>
+            </div>
+          </div>
+          <div style="margin-bottom:20px;">
+            <label class="quiz-label">Questions: <span id="ta-num-label">8</span></label>
+            <input type="range" id="ta-num-slider" min="3" max="15" value="8" class="num-slider">
+          </div>
+        </div>
+
+        <button class="btn btn-primary full-width" id="ta-start-btn">Start →</button>
+      </div>
+    </div>
+
+    <!-- TA Practice: View Paper -->
+    <div id="ta-view-paper" style="display:none;max-width:1000px;">
+      <div class="revision-topbar">
+        <div id="ta-view-paper-name" class="revision-paper-name"></div>
+        <div id="ta-view-timer" class="quiz-timer" style="font-size:15px;font-weight:600;color:var(--accent);"></div>
+        <button class="btn btn-ghost revision-expand-btn" id="ta-view-expand-btn" title="Fullscreen">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+          </svg>
+        </button>
+        <button class="btn btn-ghost" id="ta-view-done-btn">Done</button>
+      </div>
+      <div class="revision-pdf-container">
+        <iframe id="ta-pdf-iframe" class="revision-pdf-viewer" title="TA Paper PDF" src="" allowfullscreen></iframe>
+      </div>
+    </div>
+
+    <!-- TA Practice: MCQ Active -->
+    <div id="ta-mcq-active" style="display:none;max-width:680px;">
+      <div class="quiz-topbar">
+        <div class="quiz-progress-text" id="ta-progress-text"></div>
+        <button class="btn btn-ghost btn-sm" id="ta-expand-btn" style="font-size:12px;padding:6px 12px;">Fullscreen</button>
+      </div>
+      <div class="quiz-progress-bar"><div id="ta-progress-fill" class="quiz-progress-fill"></div></div>
+      <div class="card" style="margin-top:20px;">
+        <div id="ta-question-text" class="question-text"></div>
+        <div id="ta-options" class="options-list"></div>
+        <button class="btn btn-primary" id="ta-next-btn" style="display:none;margin-top:16px;">Next →</button>
+      </div>
+    </div>
+
+    <!-- TA Practice: Results -->
+    <div id="ta-mcq-results" style="display:none;max-width:520px;">
+      <div class="card" style="text-align:center;padding:40px;">
+        <div id="ta-score-fraction" style="font-size:32px;font-weight:700;color:var(--text);margin-bottom:6px;"></div>
+        <div id="ta-score-pct" style="font-size:20px;font-weight:600;color:var(--accent);margin-bottom:12px;"></div>
+        <div id="ta-results-message" style="font-size:14px;color:var(--muted);margin-bottom:28px;"></div>
+        <div style="display:flex;gap:12px;justify-content:center;">
+          <button class="btn btn-primary" id="ta-retry-btn">Retry</button>
+          <button class="btn btn-ghost" id="ta-new-ta-btn">Choose Another TA</button>
+        </div>
+      </div>
+      <div style="margin-top:24px;">
+        <div class="section-header mb-16">Review Answers</div>
+        <div id="ta-results-breakdown"></div>
       </div>
     </div>
 

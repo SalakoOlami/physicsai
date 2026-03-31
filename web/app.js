@@ -215,7 +215,7 @@ async function loadLibrary() {
       const mod = escapeHtml(s.modality || 'unknown');
       const pages = parseInt(s.page_count, 10) || 1;
       const openBtn = s.url
-        ? `<button class="btn btn-sm" onclick="openResource('${escapeHtml(s.url)}')">Open</button>`
+        ? `<button class="btn-sm" onclick="openResource('${escapeHtml(s.url)}')">Open</button>`
         : '';
       return `
       <div class="library-card">
@@ -684,10 +684,10 @@ const Quiz = {
   timeLeft: 0,
 };
 
-// Selector button wiring
-document.querySelectorAll('.diff-btn').forEach(btn => {
+// Selector button wiring (scoped to quiz-setup only)
+document.querySelectorAll('#quiz-setup .diff-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#quiz-setup .diff-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     Quiz.difficulty = btn.dataset.diff;
   });
@@ -935,8 +935,10 @@ document.querySelectorAll('.mode-tab').forEach(tab => {
     tab.classList.add('active');
     if (tab.dataset.mode === 'active-recall') {
       switchToActiveRecallMode();
-    } else {
+    } else if (tab.dataset.mode === 'past-papers') {
       switchToPastPapersMode();
+    } else if (tab.dataset.mode === 'ta-practice') {
+      switchToTAPracticeMode();
     }
   });
 });
@@ -946,6 +948,7 @@ function switchToActiveRecallMode() {
   document.getElementById('revision-setup').style.display = 'none';
   document.getElementById('revision-active').style.display = 'none';
   document.getElementById('revision-markscheme').style.display = 'none';
+  _hideTASections();
 }
 
 function switchToPastPapersMode() {
@@ -955,7 +958,15 @@ function switchToPastPapersMode() {
   document.getElementById('revision-setup').style.display = '';
   document.getElementById('revision-active').style.display = 'none';
   document.getElementById('revision-markscheme').style.display = 'none';
+  _hideTASections();
   if (!Revision.papers.length) loadPapers();
+}
+
+function _hideTASections() {
+  document.getElementById('ta-setup').style.display = 'none';
+  document.getElementById('ta-view-paper').style.display = 'none';
+  document.getElementById('ta-mcq-active').style.display = 'none';
+  document.getElementById('ta-mcq-results').style.display = 'none';
 }
 
 // Reset to Active Recall tab whenever the quiz page becomes active
@@ -1098,6 +1109,277 @@ document.getElementById('revision-done-btn').addEventListener('click', () => {
   Revision.selectedPaper = null;
   document.getElementById('revision-markscheme').style.display = 'none';
   document.getElementById('revision-setup').style.display = '';
+});
+
+/* ============================================================
+   TA PRACTICE
+   ============================================================ */
+const TA = {
+  tas: [],
+  selectedTA: null,
+  mode: 'view',            // 'view' | 'practice'
+  difficulty: 'medium',
+  numQuestions: 8,
+  questions: [],
+  current: 0,
+  score: 0,
+  timerInterval: null,
+  timeLeft: 0,
+  viewTimerInterval: null,
+  viewSecondsRemaining: 0,
+};
+
+function switchToTAPracticeMode() {
+  document.getElementById('quiz-setup').style.display = 'none';
+  document.getElementById('quiz-active').style.display = 'none';
+  document.getElementById('quiz-results').style.display = 'none';
+  document.getElementById('revision-setup').style.display = 'none';
+  document.getElementById('revision-active').style.display = 'none';
+  document.getElementById('revision-markscheme').style.display = 'none';
+  document.getElementById('ta-setup').style.display = '';
+  document.getElementById('ta-view-paper').style.display = 'none';
+  document.getElementById('ta-mcq-active').style.display = 'none';
+  document.getElementById('ta-mcq-results').style.display = 'none';
+  if (!TA.tas.length) loadTAs();
+}
+
+async function loadTAs() {
+  const select = document.getElementById('ta-select');
+  select.innerHTML = '<option value="">Loading…</option>';
+  try {
+    const resp = await fetch(`${API}/api/tas`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    TA.tas = data.tas || [];
+    select.innerHTML = '<option value="">— Choose a TA —</option>';
+    TA.tas.forEach(ta => {
+      const opt = document.createElement('option');
+      opt.value = ta.id;
+      opt.textContent = ta.name;
+      select.appendChild(opt);
+    });
+  } catch (err) {
+    select.innerHTML = '<option value="">Failed to load TAs</option>';
+  }
+}
+
+document.getElementById('ta-select').addEventListener('change', () => {
+  const id = document.getElementById('ta-select').value;
+  const banner = document.getElementById('ta-info-banner');
+  if (!id) { banner.style.display = 'none'; TA.selectedTA = null; return; }
+  TA.selectedTA = TA.tas.find(t => t.id === id) || null;
+  if (!TA.selectedTA) { banner.style.display = 'none'; return; }
+  document.getElementById('ta-info-chapter').textContent = TA.selectedTA.chapter;
+  document.getElementById('ta-info-topic').textContent = TA.selectedTA.topic;
+  banner.style.display = '';
+  // Preload PDF
+  if (TA.selectedTA.pdf_url) {
+    const iframe = document.getElementById('ta-pdf-iframe');
+    if (iframe.src !== TA.selectedTA.pdf_url) iframe.src = TA.selectedTA.pdf_url;
+  }
+});
+
+// TA mode toggle (View / Practice)
+document.querySelectorAll('[data-ta-mode]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-ta-mode]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    TA.mode = btn.dataset.taMode;
+    document.getElementById('ta-practice-options').style.display = TA.mode === 'practice' ? '' : 'none';
+  });
+});
+
+// TA difficulty buttons (scoped to ta-setup)
+document.querySelectorAll('#ta-setup [data-diff]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#ta-setup [data-diff]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    TA.difficulty = btn.dataset.diff;
+  });
+});
+
+// TA num-questions slider
+document.getElementById('ta-num-slider').addEventListener('input', function () {
+  TA.numQuestions = parseInt(this.value);
+  document.getElementById('ta-num-label').textContent = this.value;
+});
+
+document.getElementById('ta-start-btn').addEventListener('click', startTA);
+
+function startTA() {
+  if (!TA.selectedTA) { alert('Please select a TA first.'); return; }
+  if (TA.mode === 'view') {
+    startTAViewPaper();
+  } else {
+    startTAPractice();
+  }
+}
+
+function startTAViewPaper() {
+  const ta = TA.selectedTA;
+  document.getElementById('ta-view-paper-name').textContent = ta.name;
+  const iframe = document.getElementById('ta-pdf-iframe');
+  if (ta.pdf_url && iframe.src !== ta.pdf_url) iframe.src = ta.pdf_url;
+  document.getElementById('ta-setup').style.display = 'none';
+  document.getElementById('ta-view-paper').style.display = '';
+  // 45-min countdown
+  TA.viewSecondsRemaining = 45 * 60;
+  taViewClearTimer();
+  updateTAViewTimer();
+  TA.viewTimerInterval = setInterval(() => {
+    TA.viewSecondsRemaining--;
+    updateTAViewTimer();
+    if (TA.viewSecondsRemaining <= 0) taViewClearTimer();
+  }, 1000);
+}
+
+function updateTAViewTimer() {
+  const mins = Math.floor(Math.max(0, TA.viewSecondsRemaining) / 60);
+  const secs = Math.max(0, TA.viewSecondsRemaining) % 60;
+  document.getElementById('ta-view-timer').textContent =
+    `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+function taViewClearTimer() {
+  if (TA.viewTimerInterval) { clearInterval(TA.viewTimerInterval); TA.viewTimerInterval = null; }
+}
+
+async function startTAPractice() {
+  const ta = TA.selectedTA;
+  const startBtn = document.getElementById('ta-start-btn');
+  startBtn.disabled = true;
+  startBtn.textContent = 'Generating…';
+  try {
+    const resp = await fetch(`${API}/api/quiz`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        topic: ta.topic,
+        difficulty: TA.difficulty,
+        num_questions: TA.numQuestions,
+        language: document.getElementById('lang-select').value,
+      }),
+    });
+    if (!resp.ok) { const e = await resp.json().catch(() => ({})); throw new Error(e.detail || `HTTP ${resp.status}`); }
+    const data = await resp.json();
+    TA.questions = data.questions || [];
+    if (!TA.questions.length) throw new Error('No questions returned');
+    beginTAQuiz(TA.questions);
+  } catch (err) {
+    alert(`Could not generate TA quiz: ${err.message}`);
+  } finally {
+    startBtn.disabled = false;
+    startBtn.textContent = 'Start';
+  }
+}
+
+function beginTAQuiz(questions) {
+  TA.questions = questions;
+  TA.current = 0;
+  TA.score = 0;
+  document.getElementById('ta-setup').style.display = 'none';
+  document.getElementById('ta-mcq-active').style.display = '';
+  document.getElementById('ta-mcq-results').style.display = 'none';
+  showTAQuestion();
+}
+
+function showTAQuestion() {
+  clearTATimerInterval();
+  const q = TA.questions[TA.current];
+  const total = TA.questions.length;
+  document.getElementById('ta-progress-text').textContent = `${TA.current + 1} / ${total}`;
+  document.getElementById('ta-progress-fill').style.width = `${(TA.current / total) * 100}%`;
+  document.getElementById('ta-question-text').textContent = q.question;
+  document.getElementById('ta-next-btn').style.display = 'none';
+  const optList = document.getElementById('ta-options');
+  optList.innerHTML = '';
+  q.options.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.textContent = opt;
+    btn.addEventListener('click', () => selectTAAnswer(btn, i, q));
+    optList.appendChild(btn);
+  });
+}
+
+function selectTAAnswer(btn, idx, q) {
+  clearTATimerInterval();
+  const allBtns = document.querySelectorAll('#ta-options .option-btn');
+  allBtns.forEach(b => b.disabled = true);
+  const correctLetter = q.answer.trim().toUpperCase();
+  const correctIdx = ['A','B','C','D'].indexOf(correctLetter);
+  if (idx === correctIdx) {
+    btn.classList.add('correct');
+    TA.score++;
+  } else {
+    btn.classList.add('wrong');
+    if (correctIdx >= 0) allBtns[correctIdx].classList.add('correct');
+  }
+  document.getElementById('ta-next-btn').style.display = '';
+}
+
+document.getElementById('ta-next-btn').addEventListener('click', () => {
+  TA.current++;
+  if (TA.current >= TA.questions.length) {
+    showTAResults();
+  } else {
+    showTAQuestion();
+  }
+});
+
+function showTAResults() {
+  clearTATimerInterval();
+  document.getElementById('ta-mcq-active').style.display = 'none';
+  document.getElementById('ta-mcq-results').style.display = '';
+  const total = TA.questions.length;
+  const pct = Math.round((TA.score / total) * 100);
+  document.getElementById('ta-score-fraction').textContent = `${TA.score} / ${total}`;
+  document.getElementById('ta-score-pct').textContent = `${pct}%`;
+  let msg;
+  if (pct >= 80) msg = 'Excellent work!';
+  else if (pct >= 60) msg = 'Good effort — review what you missed.';
+  else if (pct >= 40) msg = 'Keep studying — you\'re getting there!';
+  else msg = 'Go through the material again.';
+  document.getElementById('ta-results-message').textContent = msg;
+  const breakdown = document.getElementById('ta-results-breakdown');
+  breakdown.innerHTML = '';
+  TA.questions.forEach((q, i) => {
+    const card = document.createElement('div');
+    card.className = 'review-card';
+    card.innerHTML = `<div class="review-q">${i + 1}. ${escapeHtml(q.question)}</div>
+      <div class="review-ans">Answer: <strong>${escapeHtml(q.answer)}</strong> — ${escapeHtml(q.options[['A','B','C','D'].indexOf(q.answer.trim().toUpperCase())] || '')}</div>
+      <div class="review-exp">${escapeHtml(q.explanation || '')}</div>`;
+    breakdown.appendChild(card);
+  });
+  Store.bumpQuestion();
+}
+
+function clearTATimerInterval() {
+  if (TA.timerInterval) { clearInterval(TA.timerInterval); TA.timerInterval = null; }
+}
+
+document.getElementById('ta-view-done-btn').addEventListener('click', () => {
+  taViewClearTimer();
+  document.getElementById('ta-pdf-iframe').src = '';
+  document.getElementById('ta-view-paper').style.display = 'none';
+  document.getElementById('ta-setup').style.display = '';
+});
+
+document.getElementById('ta-view-expand-btn').addEventListener('click', () => {
+  requestFullscreen(document.getElementById('ta-pdf-iframe'));
+});
+
+document.getElementById('ta-expand-btn').addEventListener('click', () => {
+  requestFullscreen(document.getElementById('ta-mcq-active'));
+});
+
+document.getElementById('ta-retry-btn').addEventListener('click', () => {
+  beginTAQuiz(TA.questions);
+});
+
+document.getElementById('ta-new-ta-btn').addEventListener('click', () => {
+  document.getElementById('ta-mcq-results').style.display = 'none';
+  document.getElementById('ta-setup').style.display = '';
 });
 
 /* ============================================================

@@ -322,3 +322,76 @@ def list_papers():
     results = _GDRIVE_PAPERS
 
     return {"papers": sorted(results, key=lambda x: x["name"])}
+
+
+_GDRIVE_TAS = [
+    {
+        "id": "TA03",
+        "name": "TA 03 — Forces and Motion",
+        "chapter": "Chapter 4",
+        "topic": "Forces and Motion",
+        "pdf_url": _drive_map.get("Chapter_4_2025_Q&A.pdf", ""),
+    },
+    {
+        "id": "TA04",
+        "name": "TA 04 — Work, Energy and Power",
+        "chapter": "Chapter 5",
+        "topic": "Work, Energy and Power",
+        "pdf_url": _drive_map.get("Ch5-Work_Energy_and_Power_2025_Q&A.pdf", ""),
+    },
+    {
+        "id": "TA05",
+        "name": "TA 05 — Materials",
+        "chapter": "Chapter 6",
+        "topic": "Materials, stress, strain and Young modulus",
+        "pdf_url": _drive_map.get("PHBx_Chapter_6_TA_2025_Q&A.pdf", ""),
+    },
+    {
+        "id": "TA06",
+        "name": "TA 06 — Laws of Motion and Momentum",
+        "chapter": "Chapter 7",
+        "topic": "Laws of Motion and Momentum",
+        "pdf_url": _drive_map.get("Chapter_7_TA_2025_Q&A.pdf", ""),
+    },
+    {
+        "id": "TA07",
+        "name": "TA 07 — Breadth Review (Chapters 1–7)",
+        "chapter": "Chapters 1–7",
+        "topic": "Breadth Review Chapters 1 to 7",
+        "pdf_url": _drive_map.get("Ch.1-7_Revision TA_2026_Q&A.pdf", ""),
+    },
+    {
+        "id": "TA08",
+        "name": "TA 08 — Electricity and Resistance",
+        "chapter": "Chapter 9",
+        "topic": "Electricity, resistance and I-V characteristics",
+        "pdf_url": _drive_map.get("Chapter_9_TA_2026_Q&A.pdf", ""),
+    },
+    {
+        "id": "TA09",
+        "name": "TA 09 — Charge, Circuits and Nuclear",
+        "chapter": "Chapters 8–10",
+        "topic": "Charge, electric circuits and nuclear physics",
+        "pdf_url": _drive_map.get("PHBx_Chapters_8-10_2026_Q&A.pdf", ""),
+    },
+    {
+        "id": "TA10",
+        "name": "TA 10 — Nuclear and Particle Physics",
+        "chapter": "Chapter 10",
+        "topic": "Nuclear and particle physics",
+        "pdf_url": _drive_map.get("Chapter_10_TA_2026_Q&A.pdf", ""),
+    },
+    {
+        "id": "TA11",
+        "name": "TA 11 — Waves and Optics",
+        "chapter": "Chapter 11",
+        "topic": "Waves, refraction and optical phenomena",
+        "pdf_url": _drive_map.get("Chapter_11_2026_Q&A.pdf", ""),
+    },
+]
+
+
+@app.get("/api/tas")
+def list_tas():
+    """Return TA papers with chapter info and Drive PDF URLs."""
+    return {"tas": _GDRIVE_TAS}
