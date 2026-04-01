@@ -1401,17 +1401,27 @@ const Buddy = {
 function buddySVG(colour) {
   const c = colour || Buddy.colour;
   return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <!-- Cat ears (small, pointy, on top of head) -->
-  <polygon points="28,36 22,14 40,30" fill="${c}"/>
-  <polygon points="72,36 78,14 60,30" fill="${c}"/>
-  <!-- Head (big round circle) -->
-  <circle cx="50" cy="58" r="38" fill="${c}"/>
-  <!-- White oval face plate (lower portion) -->
-  <ellipse cx="50" cy="70" rx="26" ry="20" fill="white"/>
-  <!-- Left eye (dark oval) -->
-  <ellipse cx="38" cy="65" rx="7" ry="9" fill="${c}"/>
-  <!-- Right eye (dark oval) -->
-  <ellipse cx="62" cy="65" rx="7" ry="9" fill="${c}"/>
+  <!-- Hair spikes (behind face) -->
+  <polygon points="50,2 43,22 57,22" fill="${c}" stroke="#1a1a1a" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="28,6 27,28 40,24" fill="${c}" stroke="#1a1a1a" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="72,6 60,24 73,28" fill="${c}" stroke="#1a1a1a" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="12,18 17,40 28,32" fill="${c}" stroke="#1a1a1a" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="88,18 83,40 72,32" fill="${c}" stroke="#1a1a1a" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="6,38 14,56 22,46" fill="${c}" stroke="#1a1a1a" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="94,38 86,56 78,46" fill="${c}" stroke="#1a1a1a" stroke-width="2" stroke-linejoin="round"/>
+  <!-- Hair base blob -->
+  <ellipse cx="50" cy="44" rx="35" ry="27" fill="${c}" stroke="#1a1a1a" stroke-width="2.5"/>
+  <!-- Face -->
+  <circle cx="50" cy="65" r="26" fill="#e8c99a" stroke="#1a1a1a" stroke-width="2.5"/>
+  <!-- Sunglasses left lens -->
+  <circle cx="38" cy="61" r="11" fill="#111111" stroke="#1a1a1a" stroke-width="1.5"/>
+  <!-- Sunglasses right lens -->
+  <circle cx="62" cy="61" r="11" fill="#111111" stroke="#1a1a1a" stroke-width="1.5"/>
+  <!-- Bridge -->
+  <rect x="47" y="58" width="6" height="3" fill="#1a1a1a"/>
+  <!-- Tongue -->
+  <ellipse cx="50" cy="81" rx="6" ry="5" fill="#ffb3c6"/>
+  <line x1="50" y1="78" x2="50" y2="84" stroke="#ff7aa2" stroke-width="1.5"/>
 </svg>`;
 }
 
