@@ -117,19 +117,20 @@
     </div>
 
     <div id="chat-area">
-      <!-- Study Buddy Widget -->
-      <div id="buddy-widget" class="buddy-widget" style="display:none;">
-        <div id="buddy-svg-wrap" class="buddy-svg-wrap idle"></div>
-        <div class="buddy-label">
-          <span id="buddy-name-label"></span>
-          <input type="color" id="buddy-colour-picker" title="Change colour" value="#6c63ff">
-        </div>
-      </div>
-
       <div id="chat-header">
-        <div>
-          <div class="chat-header-title">Physics Oracle</div>
-          <div class="chat-header-sub">Powered by your study materials</div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <!-- Study Buddy Widget (inline in header) -->
+          <div id="buddy-widget" class="buddy-widget-inline" style="display:none;">
+            <div id="buddy-svg-wrap" class="buddy-svg-wrap idle"></div>
+            <div class="buddy-label">
+              <span id="buddy-name-label"></span>
+              <input type="color" id="buddy-colour-picker" title="Change colour" value="#6c63ff">
+            </div>
+          </div>
+          <div>
+            <div class="chat-header-title">Physics Oracle</div>
+            <div class="chat-header-sub">Powered by your study materials</div>
+          </div>
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
           <select id="lang-select">

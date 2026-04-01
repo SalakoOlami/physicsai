@@ -1401,34 +1401,17 @@ const Buddy = {
 function buddySVG(colour) {
   const c = colour || Buddy.colour;
   return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <!-- Cat ears -->
-  <polygon points="18,38 10,12 34,28" fill="${c}"/>
-  <polygon points="82,38 90,12 66,28" fill="${c}"/>
-  <!-- Inner ear -->
-  <polygon points="20,36 14,18 32,30" fill="rgba(255,255,255,0.25)"/>
-  <polygon points="80,36 86,18 68,30" fill="rgba(255,255,255,0.25)"/>
-  <!-- Head -->
-  <circle cx="50" cy="56" r="38" fill="${c}"/>
-  <!-- Face plate -->
-  <ellipse cx="50" cy="64" rx="24" ry="18" fill="rgba(255,255,255,0.18)"/>
-  <!-- Eyes -->
-  <ellipse cx="38" cy="54" rx="7" ry="8" fill="white"/>
-  <ellipse cx="62" cy="54" rx="7" ry="8" fill="white"/>
-  <!-- Pupils -->
-  <circle cx="39" cy="55" r="4" fill="#1a1a2e"/>
-  <circle cx="63" cy="55" r="4" fill="#1a1a2e"/>
-  <!-- Eye shine -->
-  <circle cx="41" cy="53" r="1.5" fill="white"/>
-  <circle cx="65" cy="53" r="1.5" fill="white"/>
-  <!-- Nose -->
-  <ellipse cx="50" cy="66" rx="3" ry="2" fill="rgba(255,255,255,0.5)"/>
-  <!-- Mouth -->
-  <path d="M44,71 Q50,76 56,71" stroke="rgba(255,255,255,0.5)" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-  <!-- Atom symbol on forehead -->
-  <ellipse cx="50" cy="32" rx="9" ry="4" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="1.4"/>
-  <ellipse cx="50" cy="32" rx="9" ry="4" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="1.4" transform="rotate(60 50 32)"/>
-  <ellipse cx="50" cy="32" rx="9" ry="4" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="1.4" transform="rotate(120 50 32)"/>
-  <circle cx="50" cy="32" r="2" fill="rgba(255,255,255,0.7)"/>
+  <!-- Cat ears (small, pointy, on top of head) -->
+  <polygon points="28,36 22,14 40,30" fill="${c}"/>
+  <polygon points="72,36 78,14 60,30" fill="${c}"/>
+  <!-- Head (big round circle) -->
+  <circle cx="50" cy="58" r="38" fill="${c}"/>
+  <!-- White oval face plate (lower portion) -->
+  <ellipse cx="50" cy="70" rx="26" ry="20" fill="white"/>
+  <!-- Left eye (dark oval) -->
+  <ellipse cx="38" cy="65" rx="7" ry="9" fill="${c}"/>
+  <!-- Right eye (dark oval) -->
+  <ellipse cx="62" cy="65" rx="7" ry="9" fill="${c}"/>
 </svg>`;
 }
 
