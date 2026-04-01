@@ -465,11 +465,7 @@ async function submitQuestion(question) {
 function appendThinking() {
   const div = document.createElement('div');
   div.className = 'message message-ai';
-  div.innerHTML = `
-    <div class="message-bubble" style="display:flex;align-items:center;gap:6px;color:var(--muted);font-size:13px;">
-      <span class="thinking-dots"><span>.</span><span>.</span><span>.</span></span>
-      Thinking…
-    </div>`;
+  // No chat bubble — buddy thought cloud handles the thinking indicator
   messages.appendChild(div);
   scrollToBottom();
   return div;
