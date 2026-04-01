@@ -121,7 +121,14 @@
         <div style="display:flex;align-items:center;gap:12px;">
           <!-- Study Buddy Widget (inline in header) -->
           <div id="buddy-widget" class="buddy-widget-inline" style="display:none;">
-            <div id="buddy-svg-wrap" class="buddy-svg-wrap idle"></div>
+            <div class="buddy-avatar-wrap">
+              <div id="buddy-thought" class="buddy-thought" style="display:none;">
+                <span class="buddy-dot"></span>
+                <span class="buddy-dot"></span>
+                <span class="buddy-dot"></span>
+              </div>
+              <div id="buddy-svg-wrap" class="buddy-svg-wrap idle"></div>
+            </div>
             <div class="buddy-label">
               <span id="buddy-name-label"></span>
               <input type="color" id="buddy-colour-picker" title="Change colour" value="#6c63ff">

@@ -1434,10 +1434,12 @@ function renderBuddySVG(colour) {
 
 function setBuddyState(state) {
   const wrap = document.getElementById('buddy-svg-wrap');
+  const thought = document.getElementById('buddy-thought');
   if (!wrap) return;
   if (Buddy._revertTimer) { clearTimeout(Buddy._revertTimer); Buddy._revertTimer = null; }
   wrap.className = `buddy-svg-wrap ${state}`;
   Buddy.state = state;
+  if (thought) thought.style.display = state === 'thinking' ? 'flex' : 'none';
   if (state === 'celebrating' || state === 'wrong') {
     Buddy._revertTimer = setTimeout(() => setBuddyState('idle'), 2200);
   }
