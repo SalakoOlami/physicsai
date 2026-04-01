@@ -403,7 +403,7 @@ async function submitQuestion(question) {
         try { evt = JSON.parse(raw); } catch { continue; }
 
         if (evt.type === 'thinking') {
-          // already showing spinner, nothing extra needed
+          setBuddyState('thinking');
         } else if (evt.type === 'chunk') {
           // First chunk — swap thinking indicator for AI bubble
           if (!aiBubble) {
@@ -411,6 +411,7 @@ async function submitQuestion(question) {
             const result = appendAIBubble();
             aiBubble = result.bubble;
             cursor   = result.cursor;
+            setBuddyState('responding');
           }
           fullText += evt.content;
           aiBubble.textContent = fullText;
@@ -440,6 +441,7 @@ async function submitQuestion(question) {
     }
     isStreaming = false;
     sendBtn.disabled = false;
+    setBuddyState('idle');
   }
 
   // Save to conversation history
@@ -837,10 +839,12 @@ function selectAnswer(btn, idx, q) {
     btn.classList.add('correct');
     Quiz.score++;
     showFeedback(true, q.explanation);
+    setBuddyState('celebrating');
   } else {
     btn.classList.add('wrong');
     if (correctIdx >= 0) allBtns[correctIdx].classList.add('correct');
     showFeedback(false, q.explanation);
+    setBuddyState('wrong');
   }
 
   document.getElementById('next-q-btn').style.display = '';
@@ -1311,9 +1315,11 @@ function selectTAAnswer(btn, idx, q) {
   if (idx === correctIdx) {
     btn.classList.add('correct');
     TA.score++;
+    setBuddyState('celebrating');
   } else {
     btn.classList.add('wrong');
     if (correctIdx >= 0) allBtns[correctIdx].classList.add('correct');
+    setBuddyState('wrong');
   }
   document.getElementById('ta-next-btn').style.display = '';
 }
@@ -1383,6 +1389,107 @@ document.getElementById('ta-new-ta-btn').addEventListener('click', () => {
 });
 
 /* ============================================================
+   STUDY BUDDY
+   ============================================================ */
+const Buddy = {
+  name: '',
+  colour: '#6c63ff',
+  state: 'idle',
+  _revertTimer: null,
+};
+
+function buddySVG(colour) {
+  const c = colour || Buddy.colour;
+  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- Cat ears -->
+  <polygon points="18,38 10,12 34,28" fill="${c}"/>
+  <polygon points="82,38 90,12 66,28" fill="${c}"/>
+  <!-- Inner ear -->
+  <polygon points="20,36 14,18 32,30" fill="rgba(255,255,255,0.25)"/>
+  <polygon points="80,36 86,18 68,30" fill="rgba(255,255,255,0.25)"/>
+  <!-- Head -->
+  <circle cx="50" cy="56" r="38" fill="${c}"/>
+  <!-- Face plate -->
+  <ellipse cx="50" cy="64" rx="24" ry="18" fill="rgba(255,255,255,0.18)"/>
+  <!-- Eyes -->
+  <ellipse cx="38" cy="54" rx="7" ry="8" fill="white"/>
+  <ellipse cx="62" cy="54" rx="7" ry="8" fill="white"/>
+  <!-- Pupils -->
+  <circle cx="39" cy="55" r="4" fill="#1a1a2e"/>
+  <circle cx="63" cy="55" r="4" fill="#1a1a2e"/>
+  <!-- Eye shine -->
+  <circle cx="41" cy="53" r="1.5" fill="white"/>
+  <circle cx="65" cy="53" r="1.5" fill="white"/>
+  <!-- Nose -->
+  <ellipse cx="50" cy="66" rx="3" ry="2" fill="rgba(255,255,255,0.5)"/>
+  <!-- Mouth -->
+  <path d="M44,71 Q50,76 56,71" stroke="rgba(255,255,255,0.5)" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <!-- Atom symbol on forehead -->
+  <ellipse cx="50" cy="32" rx="9" ry="4" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="1.4"/>
+  <ellipse cx="50" cy="32" rx="9" ry="4" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="1.4" transform="rotate(60 50 32)"/>
+  <ellipse cx="50" cy="32" rx="9" ry="4" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="1.4" transform="rotate(120 50 32)"/>
+  <circle cx="50" cy="32" r="2" fill="rgba(255,255,255,0.7)"/>
+</svg>`;
+}
+
+function renderBuddySVG(colour) {
+  const wrap = document.getElementById('buddy-svg-wrap');
+  if (wrap) wrap.innerHTML = buddySVG(colour || Buddy.colour);
+  const modalSvg = document.getElementById('buddy-modal-svg');
+  if (modalSvg) modalSvg.innerHTML = buddySVG(colour || Buddy.colour);
+}
+
+function setBuddyState(state) {
+  const wrap = document.getElementById('buddy-svg-wrap');
+  if (!wrap) return;
+  if (Buddy._revertTimer) { clearTimeout(Buddy._revertTimer); Buddy._revertTimer = null; }
+  wrap.className = `buddy-svg-wrap ${state}`;
+  Buddy.state = state;
+  if (state === 'celebrating' || state === 'wrong') {
+    Buddy._revertTimer = setTimeout(() => setBuddyState('idle'), 2200);
+  }
+}
+
+function initBuddy() {
+  const name = localStorage.getItem('phy_buddy_name') || '';
+  const colour = localStorage.getItem('phy_buddy_colour') || '#6c63ff';
+  Buddy.colour = colour;
+  const picker = document.getElementById('buddy-colour-picker');
+  if (picker) picker.value = colour;
+  renderBuddySVG(colour);
+  if (!name) {
+    document.getElementById('buddy-modal').style.display = 'flex';
+  } else {
+    Buddy.name = name;
+    document.getElementById('buddy-name-label').textContent = name;
+    document.getElementById('buddy-widget').style.display = 'flex';
+    setBuddyState('idle');
+  }
+}
+
+document.getElementById('buddy-name-save-btn').addEventListener('click', () => {
+  const name = document.getElementById('buddy-name-input').value.trim();
+  if (!name) { document.getElementById('buddy-name-input').focus(); return; }
+  localStorage.setItem('phy_buddy_name', name);
+  Buddy.name = name;
+  document.getElementById('buddy-modal').style.display = 'none';
+  document.getElementById('buddy-name-label').textContent = name;
+  document.getElementById('buddy-widget').style.display = 'flex';
+  setBuddyState('celebrating');
+});
+
+document.getElementById('buddy-name-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('buddy-name-save-btn').click();
+});
+
+document.getElementById('buddy-colour-picker').addEventListener('input', function () {
+  Buddy.colour = this.value;
+  localStorage.setItem('phy_buddy_colour', this.value);
+  renderBuddySVG(this.value);
+});
+
+/* ============================================================
    INIT
    ============================================================ */
 renderDashboard();
+initBuddy();

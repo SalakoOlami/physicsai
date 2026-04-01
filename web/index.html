@@ -117,6 +117,15 @@
     </div>
 
     <div id="chat-area">
+      <!-- Study Buddy Widget -->
+      <div id="buddy-widget" class="buddy-widget" style="display:none;">
+        <div id="buddy-svg-wrap" class="buddy-svg-wrap idle"></div>
+        <div class="buddy-label">
+          <span id="buddy-name-label"></span>
+          <input type="color" id="buddy-colour-picker" title="Change colour" value="#6c63ff">
+        </div>
+      </div>
+
       <div id="chat-header">
         <div>
           <div class="chat-header-title">Physics Oracle</div>
@@ -426,6 +435,17 @@
   </div>
 
 </div><!-- #main -->
+
+<!-- Study Buddy Name Modal -->
+<div id="buddy-modal" class="buddy-modal-overlay" style="display:none;">
+  <div class="buddy-modal-card">
+    <div id="buddy-modal-svg" style="margin-bottom:16px;"></div>
+    <h2 style="margin:0 0 8px;font-size:22px;color:var(--text);">Meet your study buddy!</h2>
+    <p style="color:var(--muted);font-size:14px;margin:0 0 24px;">Give them a name and they'll help you through every revision session.</p>
+    <input id="buddy-name-input" class="quiz-input" type="text" maxlength="20" placeholder="e.g. Nova, Quark, Atom…" style="margin-bottom:16px;">
+    <button id="buddy-name-save-btn" class="btn btn-primary full-width">Let's go →</button>
+  </div>
+</div>
 
 <script src="app.js"></script>
 </body>
