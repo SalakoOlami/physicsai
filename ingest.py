@@ -11,6 +11,7 @@ Usage:
   python ingest.py --dir  path/to/docs/ --recursive
 """
 import argparse
+import json
 from pathlib import Path
 
 from tqdm import tqdm
@@ -23,6 +24,19 @@ from src.embedder import embed_documents, embed_image
 from src.pinecone_store import get_client, ensure_index, upsert_chunks
 
 console = Console()
+
+INGESTED_LOG = Path(__file__).parent / ".ingested_files.json"
+
+
+def load_ingested() -> set:
+    if INGESTED_LOG.exists():
+        return set(json.loads(INGESTED_LOG.read_text()))
+    return set()
+
+
+def save_ingested(ingested: set):
+    INGESTED_LOG.write_text(json.dumps(sorted(ingested)))
+
 
 TEXT_EXTENSIONS = {".txt", ".pdf", ".docx", ".doc", ".pptx"}
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg"}
@@ -100,8 +114,17 @@ def main():
     ensure_index(pc)
     console.print(f"[cyan]Pinecone index '{config.PINECONE_INDEX_NAME}' is ready.[/cyan]\n")
 
+    ingested = load_ingested()
+    new_files = [f for f in files if str(f) not in ingested]
+    skipped = len(files) - len(new_files)
+    if skipped:
+        console.print(f"[dim]Skipping {skipped} already-ingested file(s).[/dim]")
+    if not new_files:
+        console.print("[yellow]All files already ingested. Nothing to do.[/yellow]")
+        return
+
     total_vectors = 0
-    for file_path in tqdm(files, desc="Files", unit="file"):
+    for file_path in tqdm(new_files, desc="Files", unit="file"):
         ext = file_path.suffix.lower()
 
         if ext in IMAGE_EXTENSIONS:
@@ -122,6 +145,8 @@ def main():
             }
             n = upsert_chunks(pc, [chunk], [vector])
             total_vectors += n
+            ingested.add(str(file_path))
+            save_ingested(ingested)
             console.print(f"  [green]{file_path.name}[/green]: image described → {n} vector upserted")
 
         else:
@@ -129,12 +154,16 @@ def main():
             chunks = process_text_file(file_path)
             if not chunks:
                 console.print(f"  [yellow]Skipping {file_path.name} — no extractable text.[/yellow]")
+                ingested.add(str(file_path))
+                save_ingested(ingested)
                 continue
 
             texts = [c["text"] for c in chunks]
             embeddings = embed_documents(texts)
             n = upsert_chunks(pc, chunks, embeddings)
             total_vectors += n
+            ingested.add(str(file_path))
+            save_ingested(ingested)
             console.print(f"  [green]{file_path.name}[/green]: {len(chunks)} chunks → {n} vectors upserted")
 
     console.print(f"\n[bold]Done. Total vectors upserted: {total_vectors}[/bold]")

@@ -5,7 +5,11 @@ Run with:
     uvicorn server:app --reload
 """
 import json
+import random
+import sqlite3
+import string
 from collections import defaultdict
+from datetime import datetime
 from typing import AsyncGenerator
 
 import src.config as _config  # triggers dotenv load
@@ -34,6 +38,44 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ---------------------------------------------------------------------------
+# Auth DB — SQLite
+# ---------------------------------------------------------------------------
+_DB_PATH = "users.db"
+
+def _get_db() -> sqlite3.Connection:
+    conn = sqlite3.connect(_DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def _init_db():
+    conn = _get_db()
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS access_codes (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            name         TEXT NOT NULL,
+            email        TEXT NOT NULL UNIQUE,
+            code         TEXT NOT NULL UNIQUE,
+            status       TEXT NOT NULL DEFAULT 'PENDING',
+            created_at   TEXT NOT NULL,
+            activated_at TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+_init_db()
+
+def _generate_code() -> str:
+    alphabet = string.ascii_uppercase + string.digits
+    while True:
+        candidate = ''.join(random.choices(alphabet, k=8))
+        conn = _get_db()
+        row = conn.execute("SELECT id FROM access_codes WHERE code = ?", (candidate,)).fetchone()
+        conn.close()
+        if not row:
+            return candidate
 
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path as _Path
@@ -103,6 +145,18 @@ class QuizRequest(BaseModel):
     language: str = Field("en", pattern=r"^[a-z]{2}$")
 
 
+class RegisterRequest(BaseModel):
+    name:  str = Field(..., min_length=1, max_length=100)
+    email: str = Field(..., min_length=5, max_length=200)
+
+class LoginRequest(BaseModel):
+    code: str = Field(..., min_length=8, max_length=8)
+
+class AdminActivateRequest(BaseModel):
+    code: str = Field(..., min_length=8, max_length=8)
+    key:  str = Field(..., min_length=1)
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -118,6 +172,90 @@ async def warmup():
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+
+@app.post("/api/auth/register")
+def register(req: RegisterRequest):
+    name  = req.name.strip()
+    email = req.email.strip().lower()
+    conn  = _get_db()
+    try:
+        existing = conn.execute(
+            "SELECT code, status FROM access_codes WHERE email = ?", (email,)
+        ).fetchone()
+        if existing:
+            if existing["status"] == "ACTIVE":
+                return {"message": "already_active"}
+            return {"message": "already_registered"}
+        code = _generate_code()
+        now  = datetime.utcnow().isoformat()
+        conn.execute(
+            "INSERT INTO access_codes (name, email, code, status, created_at) VALUES (?, ?, ?, 'PENDING', ?)",
+            (name, email, code, now)
+        )
+        conn.commit()
+        return {"message": "registered", "code": code}
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=409, detail="Email already registered")
+    finally:
+        conn.close()
+
+
+@app.post("/api/auth/login")
+def login(req: LoginRequest):
+    code = req.code.strip().upper()
+    conn = _get_db()
+    try:
+        row = conn.execute(
+            "SELECT name, email, status FROM access_codes WHERE code = ?", (code,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=401, detail="Invalid code")
+        if row["status"] != "ACTIVE":
+            raise HTTPException(status_code=403, detail="Code not yet activated")
+        return {"token": code, "name": row["name"], "email": row["email"]}
+    finally:
+        conn.close()
+
+
+@app.get("/api/admin/users")
+def admin_list_users(key: str):
+    if key != _config.ADMIN_SECRET_KEY:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    conn = _get_db()
+    try:
+        rows = conn.execute(
+            "SELECT name, email, code, status, created_at, activated_at "
+            "FROM access_codes ORDER BY created_at DESC"
+        ).fetchall()
+        return {"users": [dict(r) for r in rows]}
+    finally:
+        conn.close()
+
+
+@app.post("/api/admin/activate")
+def admin_activate(req: AdminActivateRequest):
+    if req.key != _config.ADMIN_SECRET_KEY:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    code = req.code.strip().upper()
+    conn = _get_db()
+    try:
+        row = conn.execute(
+            "SELECT id, status FROM access_codes WHERE code = ?", (code,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Code not found")
+        if row["status"] == "ACTIVE":
+            return {"message": "already_active"}
+        now = datetime.utcnow().isoformat()
+        conn.execute(
+            "UPDATE access_codes SET status='ACTIVE', activated_at=? WHERE code=?",
+            (now, code)
+        )
+        conn.commit()
+        return {"message": "activated", "code": code}
+    finally:
+        conn.close()
 
 
 @app.post("/api/query")

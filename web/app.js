@@ -5,6 +5,193 @@
 const API = 'https://physicsai-5eih.onrender.com';
 
 /* ============================================================
+   AUTH + FREE TRIAL
+   ============================================================ */
+const AUTH_KEY   = 'phy_auth';
+const TRIAL_KEY  = 'phy_trial_start';
+const TRIAL_DAYS = 3;
+
+const Auth = {
+  get()        { try { return JSON.parse(localStorage.getItem(AUTH_KEY)); } catch { return null; } },
+  set(data)    { localStorage.setItem(AUTH_KEY, JSON.stringify(data)); },
+  clear()      { localStorage.removeItem(AUTH_KEY); },
+  isLoggedIn() { const s = Auth.get(); return !!(s && s.token && s.name); },
+};
+
+const Trial = {
+  start() {
+    if (!localStorage.getItem(TRIAL_KEY)) {
+      localStorage.setItem(TRIAL_KEY, Date.now().toString());
+    }
+  },
+  isActive() {
+    const ts = parseInt(localStorage.getItem(TRIAL_KEY) || '0', 10);
+    if (!ts) return false;
+    return (Date.now() - ts) < TRIAL_DAYS * 24 * 60 * 60 * 1000;
+  },
+  daysLeft() {
+    const ts = parseInt(localStorage.getItem(TRIAL_KEY) || '0', 10);
+    if (!ts) return 0;
+    const msLeft = (TRIAL_DAYS * 24 * 60 * 60 * 1000) - (Date.now() - ts);
+    return Math.max(0, Math.floor(msLeft / (24 * 60 * 60 * 1000)));
+  },
+};
+
+function showAuthGate() {
+  document.getElementById('auth-gate').style.display     = 'flex';
+  document.getElementById('sidebar').style.visibility   = 'hidden';
+  document.getElementById('main').style.visibility      = 'hidden';
+}
+
+function hideAuthGate() {
+  document.getElementById('auth-gate').style.display     = 'none';
+  document.getElementById('sidebar').style.visibility   = '';
+  document.getElementById('main').style.visibility      = '';
+  const btn = document.getElementById('auth-logout-btn');
+  if (btn) btn.style.display = 'flex';
+  const session = Auth.get();
+  if (session && session.name && session.name !== 'Owner') {
+    const el = document.querySelector('#page-dashboard .page-title');
+    if (el) el.textContent = `Welcome back, ${session.name}`;
+  } else if (Trial.isActive()) {
+    const sub = document.querySelector('#page-dashboard .page-sub');
+    if (sub) sub.textContent = `Free trial · ${Trial.daysLeft()} day${Trial.daysLeft() !== 1 ? 's' : ''} remaining`;
+  }
+}
+
+function _setAuthMsg(elId, text, type) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.textContent   = text;
+  el.className     = `auth-msg ${type}`;
+  el.style.display = text ? 'block' : 'none';
+}
+
+function _setLoading(btnId, loading, defaultText) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.disabled    = loading;
+  btn.textContent = loading ? 'Please wait…' : defaultText;
+}
+
+function _initAuthTabs() {
+  document.getElementById('tab-register').addEventListener('click', () => {
+    document.getElementById('tab-register').classList.add('active');
+    document.getElementById('tab-login').classList.remove('active');
+    document.getElementById('auth-panel-register').style.display = '';
+    document.getElementById('auth-panel-login').style.display    = 'none';
+    _setAuthMsg('auth-register-msg', '', '');
+  });
+  document.getElementById('tab-login').addEventListener('click', () => {
+    document.getElementById('tab-login').classList.add('active');
+    document.getElementById('tab-register').classList.remove('active');
+    document.getElementById('auth-panel-login').style.display    = '';
+    document.getElementById('auth-panel-register').style.display = 'none';
+    _setAuthMsg('auth-login-msg', '', '');
+  });
+}
+
+async function _handleRegister() {
+  const name  = document.getElementById('auth-name').value.trim();
+  const email = document.getElementById('auth-email').value.trim();
+  if (!name)  { _setAuthMsg('auth-register-msg', 'Please enter your name.', 'error'); return; }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    _setAuthMsg('auth-register-msg', 'Please enter a valid email address.', 'error'); return;
+  }
+  _setLoading('auth-register-btn', true, 'Request Access');
+  _setAuthMsg('auth-register-msg', '', '');
+  try {
+    const resp = await fetch(`${API}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) { _setAuthMsg('auth-register-msg', data.detail || 'Registration failed.', 'error'); return; }
+    if (data.message === 'already_active') {
+      _setAuthMsg('auth-register-msg', 'This email already has an active code. Use "Enter Code".', 'info'); return;
+    }
+    if (data.message === 'already_registered') {
+      _setAuthMsg('auth-register-msg', 'Already registered! Once you have paid and received your code, enter it in "Enter Code".', 'info'); return;
+    }
+    _setAuthMsg('auth-register-msg', 'Registration received! Once you have paid and received your code, click "Enter Code" above.', 'success');
+    document.getElementById('auth-name').value  = '';
+    document.getElementById('auth-email').value = '';
+  } catch { _setAuthMsg('auth-register-msg', 'Network error. Try again.', 'error'); }
+  finally  { _setLoading('auth-register-btn', false, 'Request Access'); }
+}
+
+async function _handleLogin() {
+  const rawCode = document.getElementById('auth-code').value.trim().toUpperCase();
+  if (rawCode.length !== 8) {
+    _setAuthMsg('auth-login-msg', 'Code must be exactly 8 characters (e.g. A3F9B2K1).', 'error'); return;
+  }
+  _setLoading('auth-login-btn', true, 'Enter App');
+  _setAuthMsg('auth-login-msg', '', '');
+  try {
+    const resp = await fetch(`${API}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: rawCode }),
+    });
+    const data = await resp.json();
+    if (resp.status === 401) { _setAuthMsg('auth-login-msg', 'Invalid code. Double-check and try again.', 'error'); return; }
+    if (resp.status === 403) { _setAuthMsg('auth-login-msg', 'Code not yet activated. Complete payment first.', 'error'); return; }
+    if (!resp.ok)            { _setAuthMsg('auth-login-msg', data.detail || 'Login failed.', 'error'); return; }
+    Auth.set({ token: data.token, name: data.name, email: data.email });
+    hideAuthGate();
+  } catch { _setAuthMsg('auth-login-msg', 'Network error. Try again.', 'error'); }
+  finally  { _setLoading('auth-login-btn', false, 'Enter App'); }
+}
+
+function _handleLogout() {
+  Auth.clear();
+  const el = document.querySelector('#page-dashboard .page-title');
+  if (el) el.textContent = 'Welcome back';
+  const btn = document.getElementById('auth-logout-btn');
+  if (btn) btn.style.display = 'none';
+  showAuthGate();
+}
+
+function _gateCheck() {
+  if (Auth.isLoggedIn() || Trial.isActive()) {
+    hideAuthGate();
+  } else {
+    showAuthGate();
+  }
+}
+
+function initAuth() {
+  Trial.start();
+  _initAuthTabs();
+  document.getElementById('auth-register-btn').addEventListener('click', _handleRegister);
+  document.getElementById('auth-login-btn').addEventListener('click', _handleLogin);
+  document.getElementById('auth-code').addEventListener('keydown',  (e) => { if (e.key === 'Enter') _handleLogin(); });
+  document.getElementById('auth-email').addEventListener('keydown', (e) => { if (e.key === 'Enter') _handleRegister(); });
+  const logoutBtn = document.getElementById('auth-logout-btn');
+  if (logoutBtn) logoutBtn.addEventListener('click', _handleLogout);
+
+  // Owner bypass — visit with ?key=ADMIN_SECRET for permanent access
+  const urlKey = new URLSearchParams(window.location.search).get('key');
+  if (urlKey) {
+    fetch(`${API}/api/admin/users?key=${encodeURIComponent(urlKey)}`)
+      .then(r => {
+        if (r.ok) {
+          Auth.set({ token: 'owner', name: 'Owner', email: 'owner' });
+          window.history.replaceState({}, '', window.location.pathname);
+          hideAuthGate();
+        } else {
+          _gateCheck();
+        }
+      })
+      .catch(() => _gateCheck());
+    return;
+  }
+
+  _gateCheck();
+}
+
+/* ============================================================
    WEBGL LIGHTNING BACKGROUND
    ============================================================ */
 (function initLightning() {
@@ -196,40 +383,76 @@ function renderDashboard() {
 /* ============================================================
    LIBRARY
    ============================================================ */
+let _librarySources = null;
+let _libraryActiveModality = 'all';
+
 async function loadLibrary() {
   const container = document.getElementById('library-content');
-  container.innerHTML = '<div class="loading-state">Loading library…</div>';
+  if (_librarySources !== null) { filterLibrary(); return; }
 
+  container.innerHTML = '<div class="loading-state">Loading library…</div>';
   try {
     const resp = await fetch(`${API}/api/sources`);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
-    const sources = data.sources || [];
+    _librarySources = data.sources || [];
 
-    if (!sources.length) {
+    if (!_librarySources.length) {
       container.innerHTML = '<div class="empty-state">No documents found in the knowledge base.</div>';
       return;
     }
 
-    container.innerHTML = `<div class="library-grid">${sources.map(s => {
-      const mod = escapeHtml(s.modality || 'unknown');
-      const pages = parseInt(s.page_count, 10) || 1;
-      const openBtn = s.url
-        ? `<button class="btn-sm" onclick="openResource('${escapeHtml(s.url)}')">Open</button>`
-        : '';
-      return `
-      <div class="library-card">
-        <div class="library-card-title" title="${escapeHtml(s.source)}">${escapeHtml(s.source)}</div>
-        <div class="library-card-meta">
-          <span class="badge badge-${mod}">${mod}</span>
-          <span>${pages} page${pages !== 1 ? 's' : ''}</span>
-          ${openBtn}
-        </div>
-      </div>
-    `;}).join('')}</div>`;
+    _initLibraryControls();
+    document.getElementById('library-toolbar').style.display = '';
+    filterLibrary();
   } catch (err) {
     container.innerHTML = `<div class="empty-state" style="color:var(--danger)">Could not load library: ${err.message}<br><br>Make sure the backend is running:<br><code style="font-size:12px;color:var(--muted)">uvicorn server:app --reload</code></div>`;
   }
+}
+
+function _initLibraryControls() {
+  document.getElementById('library-search').addEventListener('input', filterLibrary);
+  document.getElementById('library-filter-pills').addEventListener('click', (e) => {
+    const pill = e.target.closest('.filter-pill');
+    if (!pill) return;
+    document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    _libraryActiveModality = pill.dataset.modality;
+    filterLibrary();
+  });
+}
+
+function filterLibrary() {
+  const container = document.getElementById('library-content');
+  const query = (document.getElementById('library-search').value || '').trim().toLowerCase();
+  const modality = _libraryActiveModality;
+
+  let filtered = _librarySources;
+  if (modality !== 'all') filtered = filtered.filter(s => (s.modality || 'unknown') === modality);
+  if (query) filtered = filtered.filter(s => (s.source || '').toLowerCase().includes(query));
+
+  if (!filtered.length) {
+    const hasFilter = query || modality !== 'all';
+    container.innerHTML = `<div class="empty-state">${hasFilter ? 'No documents match your search.' : 'No documents found in the knowledge base.'}</div>`;
+    return;
+  }
+
+  container.innerHTML = `<div class="library-grid">${filtered.map(s => {
+    const mod = escapeHtml(s.modality || 'unknown');
+    const pages = parseInt(s.page_count, 10) || 1;
+    const openBtn = s.url
+      ? `<button class="btn-sm" onclick="openResource('${escapeHtml(s.url)}')">Open</button>`
+      : '';
+    return `
+    <div class="library-card">
+      <div class="library-card-title" title="${escapeHtml(s.source)}">${escapeHtml(s.source)}</div>
+      <div class="library-card-meta">
+        <span class="badge badge-${mod}">${mod}</span>
+        <span>${pages} page${pages !== 1 ? 's' : ''}</span>
+        ${openBtn}
+      </div>
+    </div>`;
+  }).join('')}</div>`;
 }
 
 function openResource(url) {
@@ -1486,5 +1709,6 @@ document.getElementById('buddy-colour-picker').addEventListener('input', functio
 /* ============================================================
    INIT
    ============================================================ */
+initAuth();
 renderDashboard();
 initBuddy();

@@ -1153,6 +1153,79 @@ body::after {
   text-align: center;
 }
 
+/* ---- Library toolbar ---- */
+.library-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.library-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+  max-width: 380px;
+}
+
+.library-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 15px;
+  height: 15px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.library-search-input {
+  width: 100%;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  padding: 9px 14px 9px 36px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.library-search-input:focus {
+  border-color: rgba(108,99,255,0.4);
+  box-shadow: 0 0 0 3px rgba(108,99,255,0.08);
+}
+.library-search-input::placeholder { color: var(--muted); }
+
+.library-filter-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filter-pill {
+  padding: 6px 14px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--card-border);
+  background: rgba(255,255,255,0.04);
+  color: var(--muted);
+  transition: all 0.18s;
+}
+.filter-pill:hover {
+  border-color: rgba(108,99,255,0.3);
+  color: var(--text);
+  background: rgba(108,99,255,0.06);
+}
+.filter-pill.active {
+  background: rgba(108,99,255,0.15);
+  border-color: rgba(108,99,255,0.45);
+  color: var(--accent);
+}
+
 /* =================================================
    PROGRESS
    =============================================== */
@@ -1494,6 +1567,11 @@ body::after {
   .welcome-chip { padding: 7px 12px; font-size: 12px; }
   .chat-welcome h2 { font-size: 18px; }
 
+  /* ---- Library ---- */
+  .library-toolbar { gap: 8px; }
+  .library-search-wrap { max-width: 100%; }
+  .filter-pill { padding: 5px 10px; font-size: 11px; }
+
   /* ---- Quiz ---- */
   #page-quiz .card { padding: 16px; }
   .diff-row { flex-wrap: wrap; gap: 6px; }
@@ -1660,3 +1738,107 @@ body::after {
 .text-sm { font-size: 13px; }
 .font-bold { font-weight: 700; }
 .full-width { width: 100%; }
+
+/* =================================================
+   AUTH GATE OVERLAY
+   ================================================= */
+#auth-gate {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,5,0.88);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.auth-card {
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 44px 40px 36px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(108,99,255,0.12);
+  text-align: center;
+  position: relative;
+}
+.auth-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(108,99,255,0.6), transparent);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.auth-logo {
+  width: 56px; height: 56px;
+  background: linear-gradient(135deg, var(--accent), var(--accent3));
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px;
+  box-shadow: 0 0 28px var(--glow);
+}
+
+.auth-title    { font-size: 24px; font-weight: 700; color: var(--text); margin: 0 0 4px; }
+.auth-subtitle { font-size: 13px; color: var(--muted); margin: 0 0 28px; }
+
+.auth-tabs {
+  display: flex; gap: 4px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  margin-bottom: 28px;
+}
+.auth-tab {
+  flex: 1; padding: 9px 16px; border-radius: 8px; border: none;
+  background: transparent; color: var(--muted);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: all 0.2s; font-family: inherit;
+}
+.auth-tab:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+.auth-tab.active {
+  background: linear-gradient(135deg, rgba(108,99,255,0.35), rgba(168,85,247,0.25));
+  color: #fff;
+  box-shadow: 0 0 14px rgba(108,99,255,0.25), inset 0 0 0 1px rgba(108,99,255,0.4);
+}
+
+.auth-field { text-align: left; margin-bottom: 16px; }
+
+.auth-code-input {
+  text-transform: uppercase;
+  letter-spacing: 4px;
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.auth-msg {
+  font-size: 13px; padding: 10px 14px;
+  border-radius: var(--radius-xs);
+  margin-bottom: 12px; text-align: left;
+}
+.auth-msg.success { background: rgba(0,196,140,0.1);   border: 1px solid rgba(0,196,140,0.25);   color: var(--success); }
+.auth-msg.error   { background: rgba(255,77,109,0.1);  border: 1px solid rgba(255,77,109,0.25);  color: var(--danger);  }
+.auth-msg.info    { background: rgba(108,99,255,0.08); border: 1px solid rgba(108,99,255,0.25);  color: var(--accent);  }
+
+.auth-hint { font-size: 12px; color: var(--muted); margin-top: 14px; line-height: 1.5; }
+
+#auth-logout-btn {
+  display: none;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(255,77,109,0.1);
+  border: 1px solid rgba(255,77,109,0.2);
+  color: var(--danger);
+  cursor: pointer;
+  align-items: center; justify-content: center;
+  margin-top: 8px; transition: all 0.2s; flex-shrink: 0;
+}
+#auth-logout-btn:hover { background: rgba(255,77,109,0.2); border-color: rgba(255,77,109,0.4); }
+
+@media (max-width: 480px) {
+  .auth-card { padding: 32px 20px 28px; margin: 16px; max-width: none; }
+}

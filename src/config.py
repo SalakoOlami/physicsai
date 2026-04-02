@@ -10,6 +10,7 @@ OPENROUTER_API_KEY  = os.environ["OPENROUTER_API_KEY"]
 OPENROUTER_MODEL    = os.environ.get("OPENROUTER_MODEL", "anthropic/claude-3.5-haiku")
 PINECONE_CLOUD      = os.environ.get("PINECONE_CLOUD", "aws")
 PINECONE_REGION     = os.environ.get("PINECONE_REGION", "us-east-1")
+ADMIN_SECRET_KEY    = os.environ.get("ADMIN_SECRET_KEY", "change-me-in-production")
 
 # Chunking
 CHUNK_SIZE_CHARS    = 2048   # ~512 tokens at 4 chars/token

@@ -59,6 +59,13 @@
     </svg>
   </a>
 
+  <button id="auth-logout-btn" title="Log out">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+      <polyline points="16 17 21 12 16 7"/>
+      <line x1="21" y1="12" x2="9" y2="12"/>
+    </svg>
+  </button>
   <div class="sidebar-footer" title="Gemini + Claude">AI</div>
 </nav>
 
@@ -182,6 +189,26 @@
       <div class="page-title">Research Archive</div>
       <div class="page-sub">All documents ingested into your knowledge base</div>
     </div>
+
+    <div class="library-toolbar" id="library-toolbar" style="display:none;">
+      <div class="library-search-wrap">
+        <svg class="library-search-icon" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="search" id="library-search" class="library-search-input"
+               placeholder="Search documents…" autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="library-filter-pills" id="library-filter-pills">
+        <button class="filter-pill active" data-modality="all">All</button>
+        <button class="filter-pill" data-modality="pdf">PDF</button>
+        <button class="filter-pill" data-modality="docx">DOCX</button>
+        <button class="filter-pill" data-modality="pptx">PPTX</button>
+        <button class="filter-pill" data-modality="image">Image</button>
+        <button class="filter-pill" data-modality="text">Text</button>
+      </div>
+    </div>
+
     <div id="library-content">
       <div class="loading-state">Loading archive…</div>
     </div>
@@ -452,6 +479,49 @@
     <p style="color:var(--muted);font-size:14px;margin:0 0 24px;">Give them a name and they'll help you through every revision session.</p>
     <input id="buddy-name-input" class="quiz-input" type="text" maxlength="20" placeholder="e.g. Nova, Quark, Atom…" style="margin-bottom:16px;">
     <button id="buddy-name-save-btn" class="btn btn-primary full-width">Let's go →</button>
+  </div>
+</div>
+
+<!-- ===== AUTH GATE OVERLAY ===== -->
+<div id="auth-gate" style="display:none;">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <svg viewBox="0 0 22 22" fill="none" width="28" height="28">
+        <path d="M11 2L4 8.5V13.5L11 20L18 13.5V8.5L11 2Z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M11 6L7 9.5V12.5L11 16L15 12.5V9.5L11 6Z" fill="white" fill-opacity="0.3"/>
+      </svg>
+    </div>
+    <h1 class="auth-title">PhysicsAI</h1>
+    <p class="auth-subtitle">A-Level Physics · Access Required</p>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-register">Register</button>
+      <button class="auth-tab" id="tab-login">Enter Code</button>
+    </div>
+
+    <div id="auth-panel-register">
+      <div class="auth-field">
+        <label class="quiz-label">Your Name</label>
+        <input class="quiz-input" type="text" id="auth-name" placeholder="e.g. Sarah Chen" autocomplete="name" />
+      </div>
+      <div class="auth-field">
+        <label class="quiz-label">Email Address</label>
+        <input class="quiz-input" type="email" id="auth-email" placeholder="you@example.com" autocomplete="email" />
+      </div>
+      <div id="auth-register-msg" class="auth-msg" style="display:none;"></div>
+      <button class="btn btn-primary full-width" id="auth-register-btn" style="margin-top:8px;">Request Access</button>
+      <p class="auth-hint">After registering, pay to receive your activation code.</p>
+    </div>
+
+    <div id="auth-panel-login" style="display:none;">
+      <div class="auth-field">
+        <label class="quiz-label">Access Code</label>
+        <input class="quiz-input auth-code-input" type="text" id="auth-code"
+               placeholder="e.g. A3F9B2K1" maxlength="8" autocomplete="off" spellcheck="false" />
+      </div>
+      <div id="auth-login-msg" class="auth-msg" style="display:none;"></div>
+      <button class="btn btn-primary full-width" id="auth-login-btn" style="margin-top:8px;">Enter App</button>
+    </div>
   </div>
 </div>
 
