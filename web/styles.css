@@ -1856,12 +1856,15 @@ body::after {
 .motiv-quote {
   font-family: Georgia, 'Times New Roman', serif;
   font-style: italic;
-  font-size: 13px;
-  color: var(--muted);
+  font-size: 13.5px;
+  color: #c4b5fd;
   text-align: right;
-  max-width: 260px;
-  line-height: 1.6;
+  max-width: 280px;
+  line-height: 1.7;
   flex-shrink: 0;
+  border-right: 2px solid rgba(168,85,247,0.5);
+  padding-right: 14px;
+  text-shadow: 0 0 20px rgba(168,85,247,0.3);
 }
 
 .motiv-banner {
