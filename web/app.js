@@ -356,9 +356,91 @@ document.addEventListener('click', (e) => {
 });
 
 /* ============================================================
+   DAILY MOTIVATIONAL BANNER
+   ============================================================ */
+const MOTIV_CACHE_KEY    = 'phy_motiv_v2';
+const LAST_QUOTE_IDX_KEY = 'phy_last_quote_idx';
+
+const MOTIV_QUOTES = [
+  { text: 'Grind now, shine later.',                                  author: 'Gary Vee' },
+  { text: "Turn your \"I can't\" into \"watch me.\"",                 author: 'Will Smith' },
+  { text: 'Energy flows where focus goes.',                           author: 'Tony Robbins' },
+  { text: 'Stress is temporary, results are permanent.',              author: 'The Rock' },
+  { text: 'Your future self will thank you for not giving up.',       author: 'Michelle Obama' },
+  { text: "Don't compete with others, compete with yesterday's you.", author: 'Jay Shetty' },
+  { text: 'Study like a student, hustle like a boss.',                author: 'Casey Neistat' },
+  { text: 'Sleep is important… but so is the bag.',                   author: 'Naval Ravikant' },
+  { text: "If it's hard, it's worth it.",                             author: 'Robert Kiyosaki' },
+  { text: 'Stop wishing, start doing.',                               author: 'Tony Robbins' },
+  { text: 'Focused > busy.',                                          author: 'Tim Ferriss' },
+  { text: 'One small win a day = massive glow-up.',                   author: 'Rachel Hollis' },
+  { text: 'Progress, not perfection.',                                author: 'Marie Forleo' },
+  { text: 'Make your goals bigger than your excuses.',                author: 'Les Brown' },
+  { text: 'Your vibe attracts your tribe… and your grades.',          author: 'Simon Sinek' },
+  { text: "Don't let distractions win.",                              author: 'James Clear' },
+  { text: 'Sacrifice now, flex later.',                               author: 'Gary Vee' },
+  { text: 'Energy spent complaining = energy wasted.',                author: 'Jay Shetty' },
+  { text: "Today's struggle = tomorrow's story.",                     author: 'Brené Brown' },
+  { text: 'Your grind will inspire someone.',                         author: 'Eric Thomas' },
+  { text: 'Eat, sleep, study, repeat… dominate.',                     author: 'Kobe Bryant' },
+  { text: "Don't scroll, build.",                                     author: 'Gary Vee' },
+  { text: 'Hustle in silence, let results make noise.',               author: 'Frank Ocean' },
+  { text: 'Invest in yourself. ROI: unlimited.',                      author: 'Naval Ravikant' },
+  { text: 'Mindset > circumstances.',                                 author: 'Robin Sharma' },
+  { text: 'Fail fast, learn faster.',                                 author: 'Reid Hoffman' },
+  { text: 'Clout fades, skills stay.',                                author: 'Naval Ravikant' },
+  { text: 'Outwork everyone, even on your worst days.',               author: 'Jocko Willink' },
+  { text: 'Your 5-year self will thank you.',                         author: 'James Clear' },
+  { text: "Legends aren't born—they're made.",                        author: 'Michael Jordan' },
+];
+
+function _pickQuote() {
+  const last = parseInt(localStorage.getItem(LAST_QUOTE_IDX_KEY) ?? '-1', 10);
+  let idx;
+  do { idx = Math.floor(Math.random() * MOTIV_QUOTES.length); } while (idx === last && MOTIV_QUOTES.length > 1);
+  localStorage.setItem(LAST_QUOTE_IDX_KEY, idx.toString());
+  return MOTIV_QUOTES[idx];
+}
+
+function _buildMotivData(stats) {
+  const today     = new Date().toDateString();
+  const streak    = stats.streak || 0;
+  const doneToday = stats.lastDate === today;
+  const q         = _pickQuote();
+
+  let feature;
+  if (streak >= 2)  feature = `🔥 Keep your ${streak}-day streak alive!`;
+  else if (!doneToday) feature = `🎯 Take today's challenge — ask your first question of the day!`;
+  else              feature = `🏆 You're building something great — stay consistent!`;
+
+  return { feature, quote: `"${q.text}" — ${q.author}` };
+}
+
+function renderMotivBanner() {
+  const bannerEl = document.getElementById('motiv-banner');
+  const quoteEl  = document.getElementById('motiv-quote');
+  if (!bannerEl && !quoteEl) return;
+
+  const today = new Date().toDateString();
+  const cache = (() => { try { return JSON.parse(localStorage.getItem(MOTIV_CACHE_KEY)); } catch { return null; } })();
+  let feature, quote;
+  if (cache && cache.date === today) {
+    ({ feature, quote } = cache);
+  } else {
+    const stats = Store.get('phy_stats', { questions: 0, topics: [], streak: 0, lastDate: null });
+    ({ feature, quote } = _buildMotivData(stats));
+    localStorage.setItem(MOTIV_CACHE_KEY, JSON.stringify({ date: today, feature, quote }));
+  }
+
+  if (bannerEl) { bannerEl.textContent = feature; bannerEl.style.display = ''; }
+  if (quoteEl)  { quoteEl.textContent  = quote;   quoteEl.style.display  = ''; }
+}
+
+/* ============================================================
    DASHBOARD
    ============================================================ */
 function renderDashboard() {
+  renderMotivBanner();
   const stats = Store.get('phy_stats', { questions: 0, topics: [], streak: 0 });
   document.getElementById('stat-questions').textContent = stats.questions || 0;
   document.getElementById('stat-topics').textContent = (stats.topics || []).length;

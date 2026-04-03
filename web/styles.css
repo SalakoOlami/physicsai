@@ -1842,3 +1842,37 @@ body::after {
 @media (max-width: 480px) {
   .auth-card { padding: 32px 20px 28px; margin: 16px; max-width: none; }
 }
+
+/* =================================================
+   DAILY MOTIVATIONAL BANNER + QUOTE
+   ================================================= */
+#page-dashboard .page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.motiv-quote {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: right;
+  max-width: 260px;
+  line-height: 1.6;
+  flex-shrink: 0;
+}
+
+.motiv-banner {
+  background: linear-gradient(135deg, rgba(108,99,255,0.10), rgba(168,85,247,0.08));
+  border: 1px solid rgba(108,99,255,0.22);
+  border-radius: var(--radius-sm, 10px);
+  padding: 12px 18px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.5;
+  margin-bottom: 20px;
+  letter-spacing: 0.01em;
+}
