@@ -59,9 +59,15 @@ def _init_db():
             code         TEXT NOT NULL UNIQUE,
             status       TEXT NOT NULL DEFAULT 'PENDING',
             created_at   TEXT NOT NULL,
-            activated_at TEXT
+            activated_at TEXT,
+            expires_at   TEXT
         )
     """)
+    # Add expires_at column if upgrading from older schema
+    try:
+        conn.execute("ALTER TABLE access_codes ADD COLUMN expires_at TEXT")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
     conn.commit()
     conn.close()
 
@@ -207,13 +213,15 @@ def login(req: LoginRequest):
     conn = _get_db()
     try:
         row = conn.execute(
-            "SELECT name, email, status FROM access_codes WHERE code = ?", (code,)
+            "SELECT name, email, status, expires_at FROM access_codes WHERE code = ?", (code,)
         ).fetchone()
         if not row:
             raise HTTPException(status_code=401, detail="Invalid code")
         if row["status"] != "ACTIVE":
             raise HTTPException(status_code=403, detail="Code not yet activated")
-        return {"token": code, "name": row["name"], "email": row["email"]}
+        if row["expires_at"] and datetime.utcnow().isoformat() > row["expires_at"]:
+            raise HTTPException(status_code=403, detail="Subscription expired")
+        return {"token": code, "name": row["name"], "email": row["email"], "expires_at": row["expires_at"]}
     finally:
         conn.close()
 
@@ -225,7 +233,7 @@ def admin_list_users(key: str):
     conn = _get_db()
     try:
         rows = conn.execute(
-            "SELECT name, email, code, status, created_at, activated_at "
+            "SELECT name, email, code, status, created_at, activated_at, expires_at "
             "FROM access_codes ORDER BY created_at DESC"
         ).fetchall()
         return {"users": [dict(r) for r in rows]}
@@ -247,13 +255,15 @@ def admin_activate(req: AdminActivateRequest):
             raise HTTPException(status_code=404, detail="Code not found")
         if row["status"] == "ACTIVE":
             return {"message": "already_active"}
-        now = datetime.utcnow().isoformat()
+        from datetime import timedelta
+        now        = datetime.utcnow().isoformat()
+        expires_at = (datetime.utcnow() + timedelta(days=30)).isoformat()
         conn.execute(
-            "UPDATE access_codes SET status='ACTIVE', activated_at=? WHERE code=?",
-            (now, code)
+            "UPDATE access_codes SET status='ACTIVE', activated_at=?, expires_at=? WHERE code=?",
+            (now, expires_at, code)
         )
         conn.commit()
-        return {"message": "activated", "code": code}
+        return {"message": "activated", "code": code, "expires_at": expires_at}
     finally:
         conn.close()
 

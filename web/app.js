@@ -15,7 +15,16 @@ const Auth = {
   get()        { try { return JSON.parse(localStorage.getItem(AUTH_KEY)); } catch { return null; } },
   set(data)    { localStorage.setItem(AUTH_KEY, JSON.stringify(data)); },
   clear()      { localStorage.removeItem(AUTH_KEY); },
-  isLoggedIn() { const s = Auth.get(); return !!(s && s.token && s.name); },
+  isLoggedIn() {
+    const s = Auth.get();
+    if (!s || !s.token || !s.name) return false;
+    if (s.token === 'owner') return true;
+    if (s.expires_at && new Date().toISOString() > s.expires_at) {
+      Auth.clear();
+      return false;
+    }
+    return true;
+  },
 };
 
 const Trial = {
@@ -138,7 +147,7 @@ async function _handleLogin() {
     if (resp.status === 401) { _setAuthMsg('auth-login-msg', 'Invalid code. Double-check and try again.', 'error'); return; }
     if (resp.status === 403) { _setAuthMsg('auth-login-msg', 'Code not yet activated. Complete payment first.', 'error'); return; }
     if (!resp.ok)            { _setAuthMsg('auth-login-msg', data.detail || 'Login failed.', 'error'); return; }
-    Auth.set({ token: data.token, name: data.name, email: data.email });
+    Auth.set({ token: data.token, name: data.name, email: data.email, expires_at: data.expires_at });
     hideAuthGate();
   } catch { _setAuthMsg('auth-login-msg', 'Network error. Try again.', 'error'); }
   finally  { _setLoading('auth-login-btn', false, 'Enter App'); }
