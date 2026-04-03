@@ -1876,3 +1876,83 @@ body::after {
   margin-bottom: 20px;
   letter-spacing: 0.01em;
 }
+
+/* =================================================
+   MOBILE OPTIMIZATIONS
+   ================================================= */
+@media (max-width: 768px) {
+  /* Stack page-header title + quote vertically on mobile */
+  #page-dashboard .page-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .motiv-quote {
+    max-width: 100%;
+    text-align: left;
+    font-size: 12px;
+  }
+  .motiv-banner {
+    font-size: 13px;
+    padding: 10px 14px;
+  }
+
+  /* Page title sizing */
+  .page-title { font-size: 22px; }
+  .page-sub   { font-size: 12px; }
+
+  /* Section headers */
+  .section-header { font-size: 11px; margin-top: 20px; margin-bottom: 10px; }
+
+  /* Recent items */
+  .recent-item-text { font-size: 13px; }
+  .recent-item-time { font-size: 11px; }
+
+  /* Input area — ensure it stays above the keyboard */
+  #input-area {
+    position: sticky;
+    bottom: 0;
+    background: var(--bg);
+    z-index: 10;
+  }
+
+  /* Make auth gate scrollable on small screens */
+  #auth-gate {
+    align-items: flex-start;
+    padding: 16px;
+    overflow-y: auto;
+  }
+  .auth-card {
+    margin: auto;
+    width: 100%;
+  }
+
+  /* Bigger touch targets for nav links */
+  .nav-link { width: 52px; height: 52px; }
+
+  /* Logout button visible on mobile (sidebar-footer hidden, so show inline) */
+  #auth-logout-btn { margin-top: 0; }
+
+  /* Library cards full width */
+  .library-card { padding: 14px; }
+  .library-card-title { font-size: 13px; }
+
+  /* Progress badges wrap nicely */
+  .badges-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .badge-card  { padding: 14px 12px; }
+
+  /* Quiz option buttons full width */
+  .quiz-option { padding: 12px 14px; font-size: 14px; }
+  .quiz-question-text { font-size: 15px; }
+}
+
+@media (max-width: 390px) {
+  .page { padding: 12px 10px; }
+  .stats-row { gap: 6px; }
+  .stat-card { padding: 12px 8px; }
+  .stat-value { font-size: 20px; }
+  .hero-card { padding: 16px 14px; }
+  .hero-title { font-size: 16px; }
+  .hero-sub   { font-size: 13px; }
+  .auth-card  { padding: 28px 16px 24px; }
+  .motiv-quote { font-size: 11.5px; }
+}
