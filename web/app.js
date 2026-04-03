@@ -1285,6 +1285,7 @@ function _hideTASections() {
   document.getElementById('ta-view-paper').style.display = 'none';
   document.getElementById('ta-mcq-active').style.display = 'none';
   document.getElementById('ta-mcq-results').style.display = 'none';
+  document.getElementById('ta-theory-active').style.display = 'none';
 }
 
 // Reset to Active Recall tab whenever the quiz page becomes active
@@ -1524,13 +1525,61 @@ document.getElementById('ta-num-slider').addEventListener('input', function () {
 
 document.getElementById('ta-start-btn').addEventListener('click', startTA);
 
+const THEORY_TYPE_META = {
+  concept:    { color: '#6c63ff', bg: 'rgba(108,99,255,0.08)',  label: '💡' },
+  formula:    { color: '#f59e0b', bg: 'rgba(245,158,11,0.08)',  label: '📐' },
+  definition: { color: '#00c48c', bg: 'rgba(0,196,140,0.08)',   label: '📖' },
+  tip:        { color: '#ec4899', bg: 'rgba(236,72,153,0.08)',  label: '⭐' },
+};
+
+async function startTATheory() {
+  const ta = TA.selectedTA;
+  document.getElementById('ta-theory-title').textContent = ta.name;
+  document.getElementById('ta-setup').style.display = 'none';
+  document.getElementById('ta-theory-active').style.display = '';
+  document.getElementById('ta-theory-loading').style.display = '';
+  document.getElementById('ta-theory-content').style.display = 'none';
+  document.getElementById('ta-theory-content').innerHTML = '';
+  try {
+    const r = await fetch(`${API}/api/theory`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic: ta.topic, chapter: ta.chapter }),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    document.getElementById('ta-theory-loading').style.display = 'none';
+    renderTheorySections(data.sections || []);
+    document.getElementById('ta-theory-content').style.display = '';
+  } catch {
+    document.getElementById('ta-theory-loading').textContent = 'Failed to load theory notes. Try again.';
+  }
+}
+
+function renderTheorySections(sections) {
+  const container = document.getElementById('ta-theory-content');
+  container.innerHTML = sections.map(sec => {
+    const meta = THEORY_TYPE_META[sec.type] || THEORY_TYPE_META.concept;
+    const cards = sec.items.map(item => `
+      <div class="theory-card" style="border-color:${meta.color}20;background:${meta.bg};">
+        <div class="theory-card-title" style="color:${meta.color};">${meta.label} ${escapeHtml(item.title)}</div>
+        <div class="theory-card-body">${escapeHtml(item.body)}</div>
+      </div>
+    `).join('');
+    return `
+      <div class="theory-section">
+        <h3 class="theory-section-title" style="color:${meta.color};">${escapeHtml(sec.title)}</h3>
+        <div class="theory-grid">${cards}</div>
+      </div>
+    `;
+  }).join('');
+}
+
 function startTA() {
   if (!TA.selectedTA) { alert('Please select a TA first.'); return; }
-  if (TA.mode === 'view') {
-    startTAViewPaper();
-  } else {
-    startTAPractice();
-  }
+  if (TA.mode === 'view')        startTAViewPaper();
+  else if (TA.mode === 'theory') startTATheory();
+  else                           startTAPractice();
 }
 
 function startTAViewPaper() {
@@ -1699,6 +1748,11 @@ document.getElementById('ta-retry-btn').addEventListener('click', () => {
 
 document.getElementById('ta-new-ta-btn').addEventListener('click', () => {
   document.getElementById('ta-mcq-results').style.display = 'none';
+  document.getElementById('ta-setup').style.display = '';
+});
+
+document.getElementById('ta-theory-done-btn').addEventListener('click', () => {
+  document.getElementById('ta-theory-active').style.display = 'none';
   document.getElementById('ta-setup').style.display = '';
 });
 

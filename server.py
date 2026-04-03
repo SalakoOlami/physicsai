@@ -19,7 +19,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from src.embedder import embed_query
-from src.openrouter import yield_answer, yield_chat, generate_quiz
+from src.openrouter import yield_answer, yield_chat, generate_quiz, generate_theory
 from src.pinecone_store import get_client, query_index
 
 
@@ -149,6 +149,11 @@ class QuizRequest(BaseModel):
     difficulty: str = Field("medium", pattern=r"^(easy|medium|hard)$")
     num_questions: int = Field(5, ge=1, le=20)
     language: str = Field("en", pattern=r"^[a-z]{2}$")
+
+
+class TheoryRequest(BaseModel):
+    topic: str = Field(..., min_length=1, max_length=300)
+    chapter: str = Field("", max_length=200)
 
 
 class RegisterRequest(BaseModel):
@@ -418,6 +423,24 @@ def quiz(req: QuizRequest):
         raise HTTPException(status_code=500, detail=f"Quiz generation error: {e}")
 
     return {"questions": questions}
+
+
+@app.post("/api/theory")
+def theory(req: TheoryRequest):
+    """Generate a structured visual theory summary for the requested topic."""
+    if not req.topic.strip():
+        raise HTTPException(status_code=400, detail="topic must not be empty")
+    try:
+        q_vec = embed_query(req.topic)
+        matches = query_index(_pc, q_vec, top_k=8)
+        matches = [m for m in matches if _is_readable(m.get("text", ""))]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Retrieval error: {e}")
+    try:
+        result = generate_theory(req.topic, req.chapter, matches)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Theory generation error: {e}")
+    return result
 
 
 def _gdrive_preview(file_id: str) -> str:

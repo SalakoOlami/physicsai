@@ -1959,3 +1959,33 @@ body::after {
   .auth-card  { padding: 28px 16px 24px; }
   .motiv-quote { font-size: 11.5px; }
 }
+
+
+/* =================================================
+   TA THEORY NOTES
+   ================================================= */
+.theory-section { margin-bottom: 28px; }
+.theory-section-title {
+  font-size: 14px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+.theory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+.theory-card {
+  border: 1px solid;
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.theory-card-title {
+  font-size: 13px; font-weight: 700; margin-bottom: 6px;
+}
+.theory-card-body {
+  font-size: 13px; color: #b0b0c0; line-height: 1.6;
+}
+@media (max-width: 480px) {
+  .theory-grid { grid-template-columns: 1fr; }
+}

@@ -401,6 +401,7 @@
           <label class="quiz-label">Mode</label>
           <div class="diff-row">
             <button class="diff-btn active" data-ta-mode="view">View Paper</button>
+            <button class="diff-btn" data-ta-mode="theory">Theory Notes</button>
             <button class="diff-btn" data-ta-mode="practice">Practice MCQs</button>
           </div>
         </div>
@@ -453,6 +454,18 @@
         <div id="ta-options" class="options-list"></div>
         <button class="btn btn-primary" id="ta-next-btn" style="display:none;margin-top:16px;">Next →</button>
       </div>
+    </div>
+
+    <!-- TA Practice: Theory Notes -->
+    <div id="ta-theory-active" style="display:none;max-width:860px;">
+      <div class="revision-topbar">
+        <div id="ta-theory-title" class="revision-paper-name"></div>
+        <button class="btn btn-ghost" id="ta-theory-done-btn">Done</button>
+      </div>
+      <div id="ta-theory-loading" style="text-align:center;padding:48px;color:#888;font-size:14px;">
+        Generating theory notes…
+      </div>
+      <div id="ta-theory-content" style="display:none;"></div>
     </div>
 
     <!-- TA Practice: Results -->

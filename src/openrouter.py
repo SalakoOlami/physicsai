@@ -209,6 +209,49 @@ def generate_quiz(topic: str, difficulty: str, num_questions: int, context_chunk
     return json.loads(raw.strip())
 
 
+def generate_theory(topic: str, chapter: str, context_chunks: list[dict]) -> dict:
+    """Generate a structured visual theory summary. Returns {sections: [{title, type, items: [{title, body}]}]}."""
+    context_text = "\n\n---\n\n".join(
+        f"[Source: {c['source']}]\n{c['text']}" for c in context_chunks
+    ) if context_chunks else "Use general A-Level Physics knowledge."
+
+    prompt = (
+        f"You are an A-Level Physics teacher creating a visual theory summary for: {topic} ({chapter}).\n\n"
+        f"Context:\n{context_text}\n\n"
+        "Return ONLY valid JSON (no markdown fences) in this exact shape:\n"
+        '{"sections":['
+        '{"title":"Key Concepts","type":"concept","items":[{"title":"...","body":"..."}]},'
+        '{"title":"Important Formulas","type":"formula","items":[{"title":"formula e.g. F=ma","body":"variable definitions"}]},'
+        '{"title":"Key Definitions","type":"definition","items":[{"title":"term","body":"definition"}]},'
+        '{"title":"Exam Tips","type":"tip","items":[{"title":"tip heading","body":"detail"}]}'
+        ']}'
+        "\nAim for 3-5 items per section. Formulas must use plain text (no LaTeX)."
+    )
+
+    payload = {
+        "model": OPENROUTER_MODEL,
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": False,
+        "temperature": 0.5,
+        "max_tokens": 2500,
+    }
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://localhost",
+        "X-Title": "RAG System",
+    }
+    resp = requests.post(OPENROUTER_URL, json=payload, headers=headers, timeout=60)
+    resp.raise_for_status()
+    raw = resp.json()["choices"][0]["message"]["content"].strip()
+    if raw.startswith("```"):
+        parts = raw.split("```")
+        raw = parts[1] if len(parts) > 1 else raw
+        if raw.startswith("json"):
+            raw = raw[4:]
+    return json.loads(raw.strip())
+
+
 def yield_chat(message: str, language: str = "en"):
     """Conversational fallback — no context, just a friendly chat response."""
     lang_note = _LANG_INSTRUCTIONS.get(language, "")
