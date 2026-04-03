@@ -8,12 +8,13 @@ import json
 import random
 import sqlite3
 import string
+import time
 from collections import defaultdict
 from datetime import datetime
 from typing import AsyncGenerator
 
 import src.config as _config  # triggers dotenv load
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -71,7 +72,70 @@ def _init_db():
     conn.commit()
     conn.close()
 
+def _init_usage_db():
+    conn = _get_db()
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS daily_usage (
+            ip   TEXT NOT NULL,
+            date TEXT NOT NULL,
+            count INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (ip, date)
+        )
+    """)
+    conn.commit()
+    conn.close()
+
 _init_db()
+_init_usage_db()
+
+# ---------------------------------------------------------------------------
+# Rate limiting & daily limits
+# ---------------------------------------------------------------------------
+_RATE_STORE: dict[str, list[float]] = defaultdict(list)
+_RATE_WINDOW  = 60   # seconds
+_RATE_MAX     = 20   # requests per window per IP
+_DAILY_MAX    = 100  # requests per day per IP
+
+def _get_ip(request: Request) -> str:
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+def _check_rate_limit(ip: str):
+    now = time.time()
+    cutoff = now - _RATE_WINDOW
+    _RATE_STORE[ip] = [t for t in _RATE_STORE[ip] if t > cutoff]
+    if len(_RATE_STORE[ip]) >= _RATE_MAX:
+        raise HTTPException(status_code=429, detail="Too many requests — slow down and try again in a minute.")
+    _RATE_STORE[ip].append(now)
+
+def _check_daily_limit(ip: str):
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    conn = _get_db()
+    try:
+        row = conn.execute(
+            "SELECT count FROM daily_usage WHERE ip = ? AND date = ?", (ip, today)
+        ).fetchone()
+        count = row["count"] if row else 0
+        if count >= _DAILY_MAX:
+            raise HTTPException(status_code=429, detail="Daily limit reached. Come back tomorrow!")
+        if row:
+            conn.execute(
+                "UPDATE daily_usage SET count = count + 1 WHERE ip = ? AND date = ?", (ip, today)
+            )
+        else:
+            conn.execute(
+                "INSERT INTO daily_usage (ip, date, count) VALUES (?, ?, 1)", (ip, today)
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+def _throttle(request: Request):
+    ip = _get_ip(request)
+    _check_rate_limit(ip)
+    _check_daily_limit(ip)
 
 def _generate_code() -> str:
     alphabet = string.ascii_uppercase + string.digits
@@ -274,7 +338,8 @@ def admin_activate(req: AdminActivateRequest):
 
 
 @app.post("/api/query")
-def query(req: QueryRequest):
+def query(req: QueryRequest, request: Request):
+    _throttle(request)
     """
     SSE streaming endpoint.
 
@@ -402,8 +467,9 @@ def list_sources():
 
 
 @app.post("/api/quiz")
-def quiz(req: QuizRequest):
+def quiz(req: QuizRequest, request: Request):
     """Generate a set of MCQ questions for the requested topic and difficulty."""
+    _throttle(request)
     if not req.topic.strip():
         raise HTTPException(status_code=400, detail="topic must not be empty")
     if req.num_questions < 1 or req.num_questions > 20:
@@ -426,8 +492,9 @@ def quiz(req: QuizRequest):
 
 
 @app.post("/api/theory")
-def theory(req: TheoryRequest):
+def theory(req: TheoryRequest, request: Request):
     """Generate a structured visual theory summary for the requested topic."""
+    _throttle(request)
     if not req.topic.strip():
         raise HTTPException(status_code=400, detail="topic must not be empty")
     try:
