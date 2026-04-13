@@ -310,14 +310,16 @@ const Store = {
     return Store.get('phy_stats', { questions: 0, topics: new Set(), streak: 0, lastDate: null });
   },
   bumpQuestion() {
-    const s = Store.get('phy_stats', { questions: 0, topics: [], streak: 0, lastDate: null });
+    const s = Store.get('phy_stats', { questions: 0, topics: [], streak: 0, lastDate: null, xp: 0 });
     s.questions = (s.questions || 0) + 1;
     const today = new Date().toDateString();
     if (s.lastDate !== today) {
       const yesterday = new Date(Date.now() - 86400000).toDateString();
       s.streak = s.lastDate === yesterday ? (s.streak || 0) + 1 : 1;
       s.lastDate = today;
+      s.xp = (s.xp || 0) + 20; // daily streak bonus
     }
+    s.xp = (s.xp || 0) + 10; // per question XP
     Store.set('phy_stats', s);
   },
   addTopic(topic) {
@@ -327,6 +329,55 @@ const Store = {
     Store.set('phy_stats', s);
   },
 };
+
+/* ============================================================
+   XP / LEVEL SYSTEM
+   ============================================================ */
+const XP_LEVELS = [
+  { level: 1,  name: 'Beginner',    xp: 0    },
+  { level: 2,  name: 'Learner',     xp: 100  },
+  { level: 3,  name: 'Student',     xp: 250  },
+  { level: 4,  name: 'Scholar',     xp: 500  },
+  { level: 5,  name: 'Physicist',   xp: 900  },
+  { level: 6,  name: 'Expert',      xp: 1400 },
+  { level: 7,  name: 'Master',      xp: 2000 },
+  { level: 8,  name: 'Grandmaster', xp: 3000 },
+  { level: 9,  name: 'Legend',      xp: 5000 },
+  { level: 10, name: 'Einstein',    xp: 8000 },
+];
+
+function getLevelInfo(totalXP) {
+  let current = XP_LEVELS[0], next = XP_LEVELS[1];
+  for (let i = XP_LEVELS.length - 1; i >= 0; i--) {
+    if (totalXP >= XP_LEVELS[i].xp) {
+      current = XP_LEVELS[i];
+      next = XP_LEVELS[i + 1] || null;
+      break;
+    }
+  }
+  const progressXP = totalXP - current.xp;
+  const rangeXP    = next ? next.xp - current.xp : 1;
+  const pct        = next ? Math.min(100, Math.round((progressXP / rangeXP) * 100)) : 100;
+  return { level: current.level, name: current.name, totalXP, progressXP, rangeXP, pct, next };
+}
+
+function addXP(amount) {
+  const stats = Store.get('phy_stats', { questions: 0, topics: [], streak: 0, lastDate: null, xp: 0 });
+  stats.xp = (stats.xp || 0) + amount;
+  Store.set('phy_stats', stats);
+}
+
+function renderXPBar() {
+  const stats = Store.get('phy_stats', { xp: 0 });
+  const info  = getLevelInfo(stats.xp || 0);
+  document.getElementById('xp-level-num').textContent  = info.level;
+  document.getElementById('xp-level-name').textContent = info.name;
+  document.getElementById('xp-current').textContent    = `${info.totalXP} XP`;
+  document.getElementById('xp-bar-fill').style.width   = `${info.pct}%`;
+  document.getElementById('xp-next-label').textContent = info.next
+    ? `${info.next.xp} XP to Level ${info.level + 1}`
+    : 'Max Level!';
+}
 
 /* ============================================================
    ROUTER
@@ -440,6 +491,7 @@ function renderMotivBanner() {
    DASHBOARD
    ============================================================ */
 function renderDashboard() {
+  renderXPBar();
   renderMotivBanner();
   const stats = Store.get('phy_stats', { questions: 0, topics: [], streak: 0 });
   document.getElementById('stat-questions').textContent = stats.questions || 0;
@@ -1246,7 +1298,8 @@ function showResults() {
     reviewList.appendChild(card);
   });
 
-  // Save to stats
+  // Save to stats + award XP
+  addXP(10 + Quiz.score * 5);
   Store.bumpQuestion();
 }
 
@@ -1573,6 +1626,7 @@ async function startTATheory() {
     document.getElementById('ta-theory-loading').style.display = 'none';
     renderTheorySections(data.sections || []);
     document.getElementById('ta-theory-content').style.display = '';
+    addXP(15);
   } catch {
     document.getElementById('ta-theory-loading').textContent = 'Failed to load theory notes. Try again.';
   }
@@ -1742,6 +1796,7 @@ function showTAResults() {
       <div class="review-exp">${escapeHtml(q.explanation || '')}</div>`;
     breakdown.appendChild(card);
   });
+  addXP(10 + TA.score * 5);
   Store.bumpQuestion();
 }
 

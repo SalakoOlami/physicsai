@@ -1989,3 +1989,57 @@ body::after {
 @media (max-width: 480px) {
   .theory-grid { grid-template-columns: 1fr; }
 }
+
+/* =================================================
+   XP LEVEL BAR
+   ================================================= */
+.xp-bar-card {
+  background: linear-gradient(135deg, rgba(108,99,255,0.10), rgba(168,85,247,0.08));
+  border: 1px solid rgba(108,99,255,0.22);
+  border-radius: var(--radius-sm, 10px);
+  padding: 14px 18px;
+  margin-bottom: 20px;
+}
+.xp-bar-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.xp-level-badge {
+  background: var(--accent, #6c63ff);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.xp-level-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  flex: 1;
+}
+.xp-next-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.xp-bar-track {
+  height: 10px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.xp-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6c63ff, #a855f7);
+  border-radius: 999px;
+  transition: width 0.6s ease;
+}
+.xp-bar-footer {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: right;
+}
