@@ -1102,15 +1102,30 @@ const Quiz = {
   source: 'library',
 };
 
-// Source toggle (Study Library / My Notes)
+// Source toggle (Study Library / Upload PDF)
 document.querySelectorAll('[data-source]').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('[data-source]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     Quiz.source = btn.dataset.source;
-    document.getElementById('custom-notes-wrap').style.display =
-      Quiz.source === 'notes' ? '' : 'none';
+    document.getElementById('upload-pdf-wrap').style.display =
+      Quiz.source === 'upload' ? '' : 'none';
   });
+});
+
+// Wire up PDF file input click and change
+document.getElementById('pdf-upload-area').addEventListener('click', () => {
+  document.getElementById('pdf-file-input').click();
+});
+document.getElementById('pdf-file-input').addEventListener('change', function () {
+  const file = this.files[0];
+  const status = document.getElementById('pdf-upload-status');
+  const prompt = document.getElementById('pdf-upload-prompt');
+  if (file) {
+    status.textContent = `✓ ${file.name}`;
+    status.style.display = '';
+    prompt.style.display = 'none';
+  }
 });
 
 // Selector button wiring (scoped to quiz-setup only)
@@ -1163,10 +1178,19 @@ async function startQuiz() {
   }
 
   let custom_context = null;
-  if (Quiz.source === 'notes') {
-    custom_context = document.getElementById('custom-notes').value.trim();
-    if (!custom_context) {
-      alert('Please paste your notes first.');
+  if (Quiz.source === 'upload') {
+    const fileInput = document.getElementById('pdf-file-input');
+    if (!fileInput.files[0]) {
+      alert('Please choose a PDF file first.');
+      return;
+    }
+    const loading = document.getElementById('quiz-loading');
+    loading.style.display = '';
+    try {
+      custom_context = await extractPDF(fileInput);
+    } catch (err) {
+      alert(`Could not read PDF: ${err.message}`);
+      loading.style.display = 'none';
       return;
     }
   }
@@ -1381,9 +1405,16 @@ document.querySelectorAll('.mode-tab').forEach(tab => {
       switchToPastPapersMode();
     } else if (tab.dataset.mode === 'ta-practice') {
       switchToTAPracticeMode();
+    } else if (tab.dataset.mode === 'flashcards') {
+      switchToFlashcardsMode();
     }
   });
 });
+
+function _hideFlashcardSections() {
+  document.getElementById('flashcard-setup').style.display = 'none';
+  document.getElementById('flashcard-active').style.display = 'none';
+}
 
 function switchToActiveRecallMode() {
   document.getElementById('quiz-setup').style.display = '';
@@ -1391,6 +1422,7 @@ function switchToActiveRecallMode() {
   document.getElementById('revision-active').style.display = 'none';
   document.getElementById('revision-markscheme').style.display = 'none';
   _hideTASections();
+  _hideFlashcardSections();
 }
 
 function switchToPastPapersMode() {
@@ -1401,6 +1433,7 @@ function switchToPastPapersMode() {
   document.getElementById('revision-active').style.display = 'none';
   document.getElementById('revision-markscheme').style.display = 'none';
   _hideTASections();
+  _hideFlashcardSections();
   if (!Revision.papers.length) loadPapers();
 }
 
@@ -1583,7 +1616,20 @@ function switchToTAPracticeMode() {
   document.getElementById('ta-view-paper').style.display = 'none';
   document.getElementById('ta-mcq-active').style.display = 'none';
   document.getElementById('ta-mcq-results').style.display = 'none';
+  _hideFlashcardSections();
   if (!TA.tas.length) loadTAs();
+}
+
+function switchToFlashcardsMode() {
+  document.getElementById('quiz-setup').style.display = 'none';
+  document.getElementById('quiz-active').style.display = 'none';
+  document.getElementById('quiz-results').style.display = 'none';
+  document.getElementById('revision-setup').style.display = 'none';
+  document.getElementById('revision-active').style.display = 'none';
+  document.getElementById('revision-markscheme').style.display = 'none';
+  _hideTASections();
+  document.getElementById('flashcard-setup').style.display = '';
+  document.getElementById('flashcard-active').style.display = 'none';
 }
 
 async function loadTAs() {
@@ -1881,6 +1927,139 @@ document.getElementById('ta-theory-done-btn').addEventListener('click', () => {
   document.getElementById('ta-theory-active').style.display = 'none';
   document.getElementById('ta-setup').style.display = '';
 });
+
+/* ============================================================
+   FLASHCARDS
+   ============================================================ */
+
+async function extractPDF(fileInput) {
+  const file = fileInput.files[0];
+  if (!file) return null;
+  const formData = new FormData();
+  formData.append('file', file);
+  const r = await fetch(`${API}/api/extract-pdf`, { method: 'POST', body: formData });
+  if (!r.ok) {
+    const e = await r.json().catch(() => ({}));
+    throw new Error(e.detail || `HTTP ${r.status}`);
+  }
+  const data = await r.json();
+  return data.text;
+}
+
+const FC = {
+  cards: [],
+  current: 0,
+  source: 'library',
+  extractedText: null,
+  numCards: 10,
+};
+
+// FC source toggle
+document.querySelectorAll('[data-fc-source]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-fc-source]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    FC.source = btn.dataset.fcSource;
+    document.getElementById('fc-upload-wrap').style.display =
+      FC.source === 'upload' ? '' : 'none';
+  });
+});
+
+// FC PDF input
+document.querySelector('#fc-upload-wrap .pdf-upload-area').addEventListener('click', () => {
+  document.getElementById('fc-pdf-input').click();
+});
+document.getElementById('fc-pdf-input').addEventListener('change', function () {
+  const file = this.files[0];
+  const status = document.getElementById('fc-upload-status');
+  const prompt = document.getElementById('fc-upload-prompt');
+  if (file) {
+    status.textContent = `✓ ${file.name}`;
+    status.style.display = '';
+    prompt.style.display = 'none';
+    FC.extractedText = null; // reset so it re-extracts on generate
+  }
+});
+
+// FC slider
+document.getElementById('fc-num-slider').addEventListener('input', function () {
+  FC.numCards = parseInt(this.value);
+  document.getElementById('fc-num-label').textContent = this.value;
+});
+
+document.getElementById('fc-start-btn').addEventListener('click', startFlashcards);
+document.getElementById('fc-quit-btn').addEventListener('click', () => {
+  document.getElementById('flashcard-active').style.display = 'none';
+  document.getElementById('flashcard-setup').style.display = '';
+});
+document.getElementById('fc-prev-btn').addEventListener('click', () => {
+  if (FC.current > 0) showFCCard(FC.current - 1);
+});
+document.getElementById('fc-next-btn').addEventListener('click', () => {
+  if (FC.current < FC.cards.length - 1) showFCCard(FC.current + 1);
+});
+document.getElementById('fc-card').addEventListener('click', () => {
+  document.getElementById('fc-card-inner').classList.toggle('flipped');
+});
+
+async function startFlashcards() {
+  const topic = document.getElementById('fc-topic').value.trim();
+  if (!topic) { document.getElementById('fc-topic').focus(); return; }
+
+  const startBtn = document.getElementById('fc-start-btn');
+  const loading = document.getElementById('fc-loading');
+  startBtn.disabled = true;
+  loading.style.display = '';
+
+  let custom_context = null;
+  try {
+    if (FC.source === 'upload') {
+      const fileInput = document.getElementById('fc-pdf-input');
+      if (!fileInput.files[0]) {
+        alert('Please choose a PDF file first.');
+        return;
+      }
+      if (!FC.extractedText) {
+        FC.extractedText = await extractPDF(fileInput);
+      }
+      custom_context = FC.extractedText;
+    }
+
+    const resp = await fetch(`${API}/api/flashcards`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic, num_cards: FC.numCards, custom_context }),
+    });
+    if (!resp.ok) {
+      const e = await resp.json().catch(() => ({}));
+      throw new Error(e.detail || `HTTP ${resp.status}`);
+    }
+    const data = await resp.json();
+    FC.cards = data.cards || [];
+    if (!FC.cards.length) throw new Error('No flashcards returned');
+
+    document.getElementById('flashcard-setup').style.display = 'none';
+    document.getElementById('flashcard-active').style.display = '';
+    showFCCard(0);
+    addXP(10);
+  } catch (err) {
+    alert(`Could not generate flashcards: ${err.message}`);
+  } finally {
+    startBtn.disabled = false;
+    loading.style.display = 'none';
+  }
+}
+
+function showFCCard(idx) {
+  FC.current = idx;
+  const card = FC.cards[idx];
+  document.getElementById('fc-card-inner').classList.remove('flipped');
+  document.getElementById('fc-front').textContent = card.front;
+  document.getElementById('fc-back').textContent = card.back;
+  document.getElementById('fc-progress-text').textContent = `${idx + 1} / ${FC.cards.length}`;
+  document.getElementById('fc-prev-btn').disabled = idx === 0;
+  document.getElementById('fc-next-btn').disabled = idx === FC.cards.length - 1;
+}
 
 /* ============================================================
    STUDY BUDDY

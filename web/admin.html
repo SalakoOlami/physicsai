@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PhysicsAI — Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0a0a0f;
+      color: #e2e2e8;
+      min-height: 100vh;
+      padding: 32px 24px;
+    }
+    h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .subtitle { font-size: 13px; color: #888; margin-bottom: 28px; }
+
+    .login-box {
+      max-width: 380px;
+      margin: 80px auto;
+      background: #13131a;
+      border: 1px solid #2a2a3a;
+      border-radius: 12px;
+      padding: 36px 32px;
+    }
+    .login-box h1 { margin-bottom: 20px; }
+    input {
+      width: 100%; padding: 10px 14px;
+      background: #1c1c28; border: 1px solid #2a2a3a;
+      border-radius: 8px; color: #e2e2e8;
+      font-size: 14px; font-family: inherit;
+      outline: none; margin-bottom: 12px;
+    }
+    input:focus { border-color: #6c63ff; }
+    button {
+      width: 100%; padding: 11px;
+      background: linear-gradient(135deg, #6c63ff, #a855f7);
+      border: none; border-radius: 8px;
+      color: #fff; font-size: 14px; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+    }
+    button:hover { opacity: 0.9; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .error-msg { color: #ff4d6d; font-size: 13px; margin-bottom: 12px; }
+
+    /* Dashboard */
+    #dashboard { display: none; max-width: 900px; margin: 0 auto; }
+    .header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+    .logout-btn {
+      width: auto; padding: 8px 18px;
+      background: rgba(255,77,109,0.15);
+      border: 1px solid rgba(255,77,109,0.3);
+      color: #ff4d6d; border-radius: 8px;
+      font-size: 13px;
+    }
+    .refresh-btn {
+      width: auto; padding: 8px 18px;
+      background: rgba(108,99,255,0.15);
+      border: 1px solid rgba(108,99,255,0.3);
+      color: #6c63ff; border-radius: 8px;
+      font-size: 13px;
+    }
+
+    .stats { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+    .stat-card {
+      background: #13131a; border: 1px solid #2a2a3a;
+      border-radius: 10px; padding: 16px 20px; flex: 1; min-width: 120px;
+    }
+    .stat-card .val { font-size: 28px; font-weight: 700; color: #6c63ff; }
+    .stat-card .lbl { font-size: 12px; color: #888; margin-top: 2px; }
+
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      text-align: left; font-size: 11px; font-weight: 600;
+      color: #888; text-transform: uppercase; letter-spacing: 0.5px;
+      padding: 10px 12px; border-bottom: 1px solid #2a2a3a;
+    }
+    tbody tr { border-bottom: 1px solid #1e1e2a; transition: background 0.15s; }
+    tbody tr:hover { background: #13131a; }
+    tbody td { padding: 12px 12px; font-size: 13px; }
+
+    .badge {
+      display: inline-block; padding: 3px 10px; border-radius: 20px;
+      font-size: 11px; font-weight: 600;
+    }
+    .badge-pending  { background: rgba(255,180,0,0.12);  color: #ffb400; border: 1px solid rgba(255,180,0,0.25); }
+    .badge-active   { background: rgba(0,196,140,0.12);  color: #00c48c; border: 1px solid rgba(0,196,140,0.25); }
+    .badge-expired  { background: rgba(255,77,109,0.12); color: #ff4d6d; border: 1px solid rgba(255,77,109,0.25); }
+
+    .code-cell { font-family: monospace; letter-spacing: 2px; font-size: 13px; }
+
+    .activate-btn {
+      width: auto; padding: 6px 14px;
+      background: rgba(0,196,140,0.12);
+      border: 1px solid rgba(0,196,140,0.3);
+      color: #00c48c; border-radius: 6px;
+      font-size: 12px; font-weight: 600;
+    }
+    .activate-btn:hover { background: rgba(0,196,140,0.22); }
+    .activate-btn:disabled { opacity: 0.4; }
+
+    .empty { text-align: center; color: #888; padding: 48px; font-size: 14px; }
+    .table-wrap { background: #0f0f18; border: 1px solid #2a2a3a; border-radius: 12px; overflow: hidden; }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-view" class="login-box">
+  <h1>Admin Panel</h1>
+  <p class="subtitle" style="margin-bottom:20px;">PhysicsAI · Owner access only</p>
+  <input type="password" id="key-input" placeholder="Enter admin key" autocomplete="off" />
+  <div id="login-error" class="error-msg" style="display:none;"></div>
+  <button id="login-btn">Sign In</button>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <div class="header-row">
+    <div>
+      <h1>Admin Panel</h1>
+      <p class="subtitle">PhysicsAI · User Management</p>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="refresh-btn" id="refresh-btn">Refresh</button>
+      <button class="logout-btn" id="logout-btn">Log out</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card"><div class="val" id="stat-total">0</div><div class="lbl">Total Users</div></div>
+    <div class="stat-card"><div class="val" id="stat-active">0</div><div class="lbl">Active</div></div>
+    <div class="stat-card"><div class="val" id="stat-pending">0</div><div class="lbl">Pending Payment</div></div>
+    <div class="stat-card"><div class="val" id="stat-expired">0</div><div class="lbl">Expired</div></div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Code</th>
+          <th>Status</th>
+          <th>Registered</th>
+          <th>Expires</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="users-tbody">
+        <tr><td colspan="7" class="empty">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const API = 'https://physicsai-5eih.onrender.com';
+let _adminKey = '';
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+}
+
+function isExpired(expires_at) {
+  if (!expires_at) return false;
+  return new Date().toISOString() > expires_at;
+}
+
+function statusBadge(row) {
+  if (row.status === 'PENDING') return '<span class="badge badge-pending">Pending</span>';
+  if (isExpired(row.expires_at))  return '<span class="badge badge-expired">Expired</span>';
+  return '<span class="badge badge-active">Active</span>';
+}
+
+async function loadUsers() {
+  const tbody = document.getElementById('users-tbody');
+  tbody.innerHTML = '<tr><td colspan="7" class="empty">Loading…</td></tr>';
+  try {
+    const r = await fetch(`${API}/api/admin/users?key=${encodeURIComponent(_adminKey)}`);
+    if (!r.ok) { tbody.innerHTML = '<tr><td colspan="7" class="empty">Failed to load users.</td></tr>'; return; }
+    const { users } = await r.json();
+
+    document.getElementById('stat-total').textContent   = users.length;
+    document.getElementById('stat-active').textContent  = users.filter(u => u.status === 'ACTIVE' && !isExpired(u.expires_at)).length;
+    document.getElementById('stat-pending').textContent = users.filter(u => u.status === 'PENDING').length;
+    document.getElementById('stat-expired').textContent = users.filter(u => u.status === 'ACTIVE' && isExpired(u.expires_at)).length;
+
+    if (!users.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">No users yet.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = users.map(u => `
+      <tr>
+        <td>${u.name}</td>
+        <td>${u.email}</td>
+        <td class="code-cell">${u.code}</td>
+        <td>${statusBadge(u)}</td>
+        <td>${fmtDate(u.created_at)}</td>
+        <td>${fmtDate(u.expires_at)}</td>
+        <td>
+          ${u.status === 'PENDING' || isExpired(u.expires_at)
+            ? `<button class="activate-btn" onclick="activateCode('${u.code}', this)">Activate</button>`
+            : '—'
+          }
+        </td>
+      </tr>
+    `).join('');
+  } catch {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">Network error.</td></tr>';
+  }
+}
+
+async function activateCode(code, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Activating…';
+  try {
+    const r = await fetch(`${API}/api/admin/activate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, key: _adminKey }),
+    });
+    if (r.ok) {
+      await loadUsers();
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Activate';
+      alert('Failed to activate. Try again.');
+    }
+  } catch {
+    btn.disabled = false;
+    btn.textContent = 'Activate';
+    alert('Network error.');
+  }
+}
+
+async function doLogin() {
+  const key = document.getElementById('key-input').value.trim();
+  if (!key) return;
+  const btn = document.getElementById('login-btn');
+  btn.disabled = true; btn.textContent = 'Checking…';
+  const errEl = document.getElementById('login-error');
+  errEl.style.display = 'none';
+  try {
+    const r = await fetch(`${API}/api/admin/users?key=${encodeURIComponent(key)}`);
+    if (!r.ok) {
+      errEl.textContent = 'Wrong key. Try again.';
+      errEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Sign In';
+      return;
+    }
+    _adminKey = key;
+    document.getElementById('login-view').style.display = 'none';
+    document.getElementById('dashboard').style.display  = 'block';
+    const { users } = await r.json();
+    renderUsers(users);
+    // Update stats inline to avoid double fetch
+    document.getElementById('stat-total').textContent   = users.length;
+    document.getElementById('stat-active').textContent  = users.filter(u => u.status === 'ACTIVE' && !isExpired(u.expires_at)).length;
+    document.getElementById('stat-pending').textContent = users.filter(u => u.status === 'PENDING').length;
+    document.getElementById('stat-expired').textContent = users.filter(u => u.status === 'ACTIVE' && isExpired(u.expires_at)).length;
+  } catch {
+    errEl.textContent = 'Network error.';
+    errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Sign In';
+  }
+}
+
+function renderUsers(users) {
+  const tbody = document.getElementById('users-tbody');
+  if (!users.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">No users yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = users.map(u => `
+    <tr>
+      <td>${u.name}</td>
+      <td>${u.email}</td>
+      <td class="code-cell">${u.code}</td>
+      <td>${statusBadge(u)}</td>
+      <td>${fmtDate(u.created_at)}</td>
+      <td>${fmtDate(u.expires_at)}</td>
+      <td>
+        ${u.status === 'PENDING' || isExpired(u.expires_at)
+          ? `<button class="activate-btn" onclick="activateCode('${u.code}', this)">Activate</button>`
+          : '—'
+        }
+      </td>
+    </tr>
+  `).join('');
+}
+
+document.getElementById('login-btn').addEventListener('click', doLogin);
+document.getElementById('key-input').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('refresh-btn').addEventListener('click', loadUsers);
+document.getElementById('logout-btn').addEventListener('click', () => {
+  _adminKey = '';
+  document.getElementById('key-input').value = '';
+  document.getElementById('dashboard').style.display  = 'none';
+  document.getElementById('login-view').style.display = 'block';
+});
+</script>
+</body>
+</html>

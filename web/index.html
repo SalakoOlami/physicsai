@@ -281,6 +281,7 @@
       <button class="mode-tab active" id="tab-active-recall" data-mode="active-recall">Active Recall</button>
       <button class="mode-tab" id="tab-past-papers" data-mode="past-papers">Past Papers</button>
       <button class="mode-tab" id="tab-ta-practice" data-mode="ta-practice">TA Practice</button>
+      <button class="mode-tab" id="tab-flashcards" data-mode="flashcards">Flashcards</button>
     </div>
 
     <div id="quiz-setup">
@@ -289,12 +290,16 @@
           <label class="quiz-label">Source</label>
           <div class="diff-row">
             <button class="diff-btn active" data-source="library">Study Library</button>
-            <button class="diff-btn" data-source="notes">My Notes</button>
+            <button class="diff-btn" data-source="upload">Upload PDF</button>
           </div>
         </div>
-        <div id="custom-notes-wrap" style="display:none;margin-bottom:20px;">
-          <label class="quiz-label">Paste your notes here</label>
-          <textarea id="custom-notes" class="quiz-input" placeholder="Paste your revision notes, textbook excerpts, or any material you want to be quizzed on…" rows="6" style="resize:vertical;min-height:120px;font-size:13px;line-height:1.6;"></textarea>
+        <div id="upload-pdf-wrap" style="display:none;margin-bottom:20px;">
+          <label class="quiz-label">Upload your PDF</label>
+          <div class="pdf-upload-area" id="pdf-upload-area">
+            <input type="file" id="pdf-file-input" accept=".pdf" style="display:none;">
+            <div id="pdf-upload-prompt" class="pdf-upload-prompt">📄 Click to choose a PDF</div>
+            <div id="pdf-upload-status" style="display:none;font-size:13px;color:#00c48c;margin-top:6px;"></div>
+          </div>
         </div>
         <div style="margin-bottom:20px;">
           <label class="quiz-label">Topic</label>
@@ -523,6 +528,60 @@
       <div style="margin-top:24px;">
         <div class="section-header mb-16">Review Answers</div>
         <div id="ta-results-breakdown"></div>
+      </div>
+    </div>
+
+    <!-- Flashcards Setup -->
+    <div id="flashcard-setup" style="display:none;">
+      <div class="card" style="max-width:520px;">
+        <div style="margin-bottom:20px;">
+          <label class="quiz-label">Source</label>
+          <div class="diff-row">
+            <button class="diff-btn active" data-fc-source="library">Study Library</button>
+            <button class="diff-btn" data-fc-source="upload">Upload PDF</button>
+          </div>
+        </div>
+        <div id="fc-upload-wrap" style="display:none;margin-bottom:20px;">
+          <label class="quiz-label">Upload your PDF</label>
+          <div class="pdf-upload-area">
+            <input type="file" id="fc-pdf-input" accept=".pdf" style="display:none;">
+            <div id="fc-upload-prompt" class="pdf-upload-prompt">📄 Click to choose a PDF</div>
+            <div id="fc-upload-status" style="display:none;font-size:13px;color:#00c48c;margin-top:6px;"></div>
+          </div>
+        </div>
+        <div style="margin-bottom:20px;">
+          <label class="quiz-label">Topic</label>
+          <input id="fc-topic" class="quiz-input" type="text" placeholder="e.g. Electricity, Forces…" />
+        </div>
+        <div style="margin-bottom:24px;">
+          <label class="quiz-label">Number of cards: <span id="fc-num-label">10</span></label>
+          <input type="range" id="fc-num-slider" min="3" max="20" value="10" class="num-slider">
+        </div>
+        <button class="btn btn-primary full-width" id="fc-start-btn">Generate Flashcards →</button>
+        <div id="fc-loading" style="display:none;text-align:center;margin-top:16px;color:var(--muted);font-size:14px;">
+          <span class="thinking-dots"><span>.</span><span>.</span><span>.</span></span> Generating flashcards…
+        </div>
+      </div>
+    </div>
+
+    <!-- Flashcards Active -->
+    <div id="flashcard-active" style="display:none;max-width:600px;">
+      <div class="quiz-topbar">
+        <div class="quiz-progress-text" id="fc-progress-text"></div>
+        <button class="btn btn-ghost btn-sm" id="fc-quit-btn">Quit</button>
+      </div>
+      <div class="fc-card-wrap">
+        <div class="fc-card" id="fc-card">
+          <div class="fc-card-inner" id="fc-card-inner">
+            <div class="fc-front" id="fc-front"></div>
+            <div class="fc-back" id="fc-back"></div>
+          </div>
+        </div>
+        <p class="fc-hint">Click card to flip</p>
+      </div>
+      <div class="fc-nav">
+        <button class="btn btn-ghost" id="fc-prev-btn">← Prev</button>
+        <button class="btn btn-primary" id="fc-next-btn">Next →</button>
       </div>
     </div>
 

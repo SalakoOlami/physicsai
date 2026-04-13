@@ -5,22 +5,25 @@ Run with:
     uvicorn server:app --reload
 """
 import json
+import os
 import random
 import sqlite3
 import string
+import tempfile
 import time
 from collections import defaultdict
 from datetime import datetime
 from typing import AsyncGenerator
 
 import src.config as _config  # triggers dotenv load
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from src.embedder import embed_query
-from src.openrouter import yield_answer, yield_chat, generate_quiz, generate_theory
+from src.openrouter import yield_answer, yield_chat, generate_quiz, generate_theory, generate_flashcards
+from src.pdf_loader import load_pdf
 from src.pinecone_store import get_client, query_index
 
 
@@ -213,12 +216,18 @@ class QuizRequest(BaseModel):
     difficulty: str = Field("medium", pattern=r"^(easy|medium|hard)$")
     num_questions: int = Field(5, ge=1, le=20)
     language: str = Field("en", pattern=r"^[a-z]{2}$")
-    custom_context: str | None = Field(None, max_length=8000)
+    custom_context: str | None = Field(None, max_length=20000)
 
 
 class TheoryRequest(BaseModel):
     topic: str = Field(..., min_length=1, max_length=300)
     chapter: str = Field("", max_length=200)
+
+
+class FlashcardRequest(BaseModel):
+    topic: str = Field(..., min_length=1, max_length=300)
+    num_cards: int = Field(10, ge=3, le=20)
+    custom_context: str | None = Field(None, max_length=20000)
 
 
 class RegisterRequest(BaseModel):
@@ -513,6 +522,47 @@ def theory(req: TheoryRequest, request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Theory generation error: {e}")
     return result
+
+
+@app.post("/api/extract-pdf")
+async def extract_pdf(file: UploadFile = File(...)):
+    """Extract text from an uploaded PDF file."""
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported.")
+    contents = await file.read()
+    if len(contents) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large. Max 10MB.")
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+        tmp.write(contents)
+        tmp_path = tmp.name
+    try:
+        pages = load_pdf(tmp_path)
+        text = "\n\n".join(p["text"] for p in pages)[:20000]
+    finally:
+        os.unlink(tmp_path)
+    if not text.strip():
+        raise HTTPException(status_code=422, detail="Could not extract text from this PDF.")
+    return {"text": text}
+
+
+@app.post("/api/flashcards")
+def flashcards(req: FlashcardRequest, request: Request):
+    """Generate flashcards for a topic, optionally using custom PDF context."""
+    _throttle(request)
+    if req.custom_context:
+        matches = [{"source": "Your Notes", "text": req.custom_context}]
+    else:
+        try:
+            q_vec = embed_query(req.topic)
+            matches = query_index(_pc, q_vec, top_k=8)
+            matches = [m for m in matches if _is_readable(m.get("text", ""))]
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Retrieval error: {e}")
+    try:
+        cards = generate_flashcards(req.topic, req.num_cards, matches)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Flashcard generation error: {e}")
+    return {"cards": cards}
 
 
 def _gdrive_preview(file_id: str) -> str:
