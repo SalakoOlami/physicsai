@@ -397,6 +397,10 @@ function renderStreakCalendar() {
   const daysInMonth  = new Date(year, month + 1, 0).getDate();
   const firstDayOfWeek = new Date(year, month, 1).getDay();
 
+  // Day headers
+  const headers = ['Su','Mo','Tu','We','Th','Fr','Sa']
+    .map(d => `<div class="cal-header">${d}</div>`).join('');
+
   // Empty padding cells
   let cells = Array(firstDayOfWeek).fill('<div class="cal-day cal-empty"></div>').join('');
 
@@ -408,7 +412,7 @@ function renderStreakCalendar() {
     cells += `<div class="cal-day${active ? ' cal-active' : ''}${isToday ? ' cal-today' : ''}" title="${ds}">${day}</div>`;
   }
 
-  calEl.innerHTML = cells;
+  calEl.innerHTML = headers + cells;
 }
 
 function renderXPBar() {
