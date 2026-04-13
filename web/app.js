@@ -317,7 +317,13 @@ const Store = {
       const yesterday = new Date(Date.now() - 86400000).toDateString();
       s.streak = s.lastDate === yesterday ? (s.streak || 0) + 1 : 1;
       s.lastDate = today;
-      s.xp = (s.xp || 0) + 20; // daily streak bonus
+        s.xp = (s.xp || 0) + 20; // daily streak bonus
+      const studyDays = Store.get('phy_study_days', []);
+      if (!studyDays.includes(today)) {
+        studyDays.push(today);
+        if (studyDays.length > 90) studyDays.shift();
+        Store.set('phy_study_days', studyDays);
+      }
     }
     s.xp = (s.xp || 0) + 10; // per question XP
     Store.set('phy_stats', s);
@@ -365,6 +371,29 @@ function addXP(amount) {
   const stats = Store.get('phy_stats', { questions: 0, topics: [], streak: 0, lastDate: null, xp: 0 });
   stats.xp = (stats.xp || 0) + amount;
   Store.set('phy_stats', stats);
+}
+
+function renderStreakCalendar() {
+  const studyDays = new Set(Store.get('phy_study_days', []));
+  const today = new Date();
+  const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  const days = [];
+  for (let i = 34; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    days.push(d);
+  }
+  const header   = DAY_LABELS.map(d => `<div class="cal-header">${d}</div>`).join('');
+  const startDow = days[0].getDay();
+  const padding  = Array(startDow).fill('<div class="cal-day cal-empty"></div>').join('');
+  const cells    = days.map(d => {
+    const ds      = d.toDateString();
+    const active  = studyDays.has(ds);
+    const isToday = ds === today.toDateString();
+    return `<div class="cal-day${active ? ' cal-active' : ''}${isToday ? ' cal-today' : ''}" title="${ds}"></div>`;
+  }).join('');
+  document.getElementById('streak-calendar').innerHTML =
+    `<div class="cal-grid">${header}${padding}${cells}</div>`;
 }
 
 function renderXPBar() {
@@ -492,6 +521,7 @@ function renderMotivBanner() {
    ============================================================ */
 function renderDashboard() {
   renderXPBar();
+  renderStreakCalendar();
   renderMotivBanner();
   const stats = Store.get('phy_stats', { questions: 0, topics: [], streak: 0 });
   document.getElementById('stat-questions').textContent = stats.questions || 0;
