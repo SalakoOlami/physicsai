@@ -374,26 +374,41 @@ function addXP(amount) {
 }
 
 function renderStreakCalendar() {
+  const calEl = document.getElementById('streak-calendar');
+  if (!calEl) return;
+
   const studyDays = new Set(Store.get('phy_study_days', []));
-  const today = new Date();
-  const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-  const days = [];
-  for (let i = 34; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    days.push(d);
-  }
-  const header   = DAY_LABELS.map(d => `<div class="cal-header">${d}</div>`).join('');
-  const startDow = days[0].getDay();
-  const padding  = Array(startDow).fill('<div class="cal-day cal-empty"></div>').join('');
-  const cells    = days.map(d => {
+  const stats     = Store.get('phy_stats', { streak: 0 });
+  const today     = new Date();
+  const year      = today.getFullYear();
+  const month     = today.getMonth();
+
+  // Month label
+  const MONTHS = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+  const monthEl = document.getElementById('cal-month-label');
+  if (monthEl) monthEl.textContent = `${MONTHS[month]} ${year}`;
+
+  // Streak count
+  const streakEl = document.getElementById('streak-count');
+  if (streakEl) streakEl.textContent = stats.streak || 0;
+
+  // Days in month
+  const daysInMonth  = new Date(year, month + 1, 0).getDate();
+  const firstDayOfWeek = new Date(year, month, 1).getDay();
+
+  // Empty padding cells
+  let cells = Array(firstDayOfWeek).fill('<div class="cal-day cal-empty"></div>').join('');
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const d       = new Date(year, month, day);
     const ds      = d.toDateString();
     const active  = studyDays.has(ds);
-    const isToday = ds === today.toDateString();
-    return `<div class="cal-day${active ? ' cal-active' : ''}${isToday ? ' cal-today' : ''}" title="${ds}"></div>`;
-  }).join('');
-  document.getElementById('streak-calendar').innerHTML =
-    `<div class="cal-grid">${header}${padding}${cells}</div>`;
+    const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+    cells += `<div class="cal-day${active ? ' cal-active' : ''}${isToday ? ' cal-today' : ''}" title="${ds}">${day}</div>`;
+  }
+
+  calEl.innerHTML = cells;
 }
 
 function renderXPBar() {
@@ -521,7 +536,6 @@ function renderMotivBanner() {
    ============================================================ */
 function renderDashboard() {
   renderXPBar();
-  renderStreakCalendar();
   renderMotivBanner();
   const stats = Store.get('phy_stats', { questions: 0, topics: [], streak: 0 });
   document.getElementById('stat-questions').textContent = stats.questions || 0;
@@ -645,6 +659,7 @@ const BADGES = [
 ];
 
 function renderProgress() {
+  renderStreakCalendar();
   const stats  = Store.get('phy_stats', { questions: 0, topics: [], streak: 0 });
   const history = Store.getHistory();
 
