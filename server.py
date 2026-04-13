@@ -213,6 +213,7 @@ class QuizRequest(BaseModel):
     difficulty: str = Field("medium", pattern=r"^(easy|medium|hard)$")
     num_questions: int = Field(5, ge=1, le=20)
     language: str = Field("en", pattern=r"^[a-z]{2}$")
+    custom_context: str | None = Field(None, max_length=8000)
 
 
 class TheoryRequest(BaseModel):
@@ -475,13 +476,17 @@ def quiz(req: QuizRequest, request: Request):
     if req.num_questions < 1 or req.num_questions > 20:
         raise HTTPException(status_code=400, detail="num_questions must be 1–20")
 
-    # Retrieve relevant context for the topic
-    try:
-        q_vec = embed_query(req.topic)
-        matches = query_index(_pc, q_vec, top_k=8)
-        matches = [m for m in matches if _is_readable(m.get("text", ""))]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Retrieval error: {e}")
+    if req.custom_context:
+        # Use student's own pasted material — skip Pinecone
+        matches = [{"source": "Your Notes", "text": req.custom_context}]
+    else:
+        # Normal flow — retrieve from Pinecone
+        try:
+            q_vec = embed_query(req.topic)
+            matches = query_index(_pc, q_vec, top_k=8)
+            matches = [m for m in matches if _is_readable(m.get("text", ""))]
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Retrieval error: {e}")
 
     try:
         questions = generate_quiz(req.topic, req.difficulty, req.num_questions, matches, req.language)

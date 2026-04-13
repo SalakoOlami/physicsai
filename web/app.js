@@ -9,7 +9,7 @@ const API = 'https://physicsai-5eih.onrender.com';
    ============================================================ */
 const AUTH_KEY   = 'phy_auth';
 const TRIAL_KEY  = 'phy_trial_start';
-const TRIAL_DAYS = 3;
+const TRIAL_DAYS = 7;
 
 const Auth = {
   get()        { try { return JSON.parse(localStorage.getItem(AUTH_KEY)); } catch { return null; } },
@@ -998,7 +998,19 @@ const Quiz = {
   score: 0,
   timerInterval: null,
   timeLeft: 0,
+  source: 'library',
 };
+
+// Source toggle (Study Library / My Notes)
+document.querySelectorAll('[data-source]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-source]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    Quiz.source = btn.dataset.source;
+    document.getElementById('custom-notes-wrap').style.display =
+      Quiz.source === 'notes' ? '' : 'none';
+  });
+});
 
 // Selector button wiring (scoped to quiz-setup only)
 document.querySelectorAll('#quiz-setup .diff-btn').forEach(btn => {
@@ -1049,6 +1061,15 @@ async function startQuiz() {
     return;
   }
 
+  let custom_context = null;
+  if (Quiz.source === 'notes') {
+    custom_context = document.getElementById('custom-notes').value.trim();
+    if (!custom_context) {
+      alert('Please paste your notes first.');
+      return;
+    }
+  }
+
   const loading = document.getElementById('quiz-loading');
   const startBtn = document.getElementById('start-quiz-btn');
   loading.style.display = '';
@@ -1063,6 +1084,7 @@ async function startQuiz() {
         difficulty: Quiz.difficulty,
         num_questions: Quiz.numQuestions,
         language: document.getElementById('lang-select').value,
+        custom_context,
       }),
     });
 
