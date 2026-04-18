@@ -9,7 +9,7 @@ const API = 'https://physicsai-5eih.onrender.com';
    ============================================================ */
 const AUTH_KEY   = 'phy_auth';
 const TRIAL_KEY  = 'phy_trial_start';
-const TRIAL_DAYS = 7;
+const TRIAL_DAYS = 10;
 
 const Auth = {
   get()        { try { return JSON.parse(localStorage.getItem(AUTH_KEY)); } catch { return null; } },
@@ -62,9 +62,6 @@ function hideAuthGate() {
   if (session && session.name && session.name !== 'Owner') {
     const el = document.querySelector('#page-dashboard .page-title');
     if (el) el.textContent = `Welcome back, ${session.name}`;
-  } else if (Trial.isActive()) {
-    const sub = document.querySelector('#page-dashboard .page-sub');
-    if (sub) sub.textContent = `Free trial · ${Trial.daysLeft()} day${Trial.daysLeft() !== 1 ? 's' : ''} remaining`;
   }
 }
 
@@ -84,20 +81,7 @@ function _setLoading(btnId, loading, defaultText) {
 }
 
 function _initAuthTabs() {
-  document.getElementById('tab-register').addEventListener('click', () => {
-    document.getElementById('tab-register').classList.add('active');
-    document.getElementById('tab-login').classList.remove('active');
-    document.getElementById('auth-panel-register').style.display = '';
-    document.getElementById('auth-panel-login').style.display    = 'none';
-    _setAuthMsg('auth-register-msg', '', '');
-  });
-  document.getElementById('tab-login').addEventListener('click', () => {
-    document.getElementById('tab-login').classList.add('active');
-    document.getElementById('tab-register').classList.remove('active');
-    document.getElementById('auth-panel-login').style.display    = '';
-    document.getElementById('auth-panel-register').style.display = 'none';
-    _setAuthMsg('auth-login-msg', '', '');
-  });
+  // No tabs — single register flow only
 }
 
 async function _handleRegister() {
@@ -120,14 +104,12 @@ async function _handleRegister() {
     if (data.message === 'already_active') {
       _setAuthMsg('auth-register-msg', 'This email already has an active code. Use "Enter Code".', 'info'); return;
     }
-    if (data.message === 'already_registered') {
-      _setAuthMsg('auth-register-msg', 'Already registered! Once you have paid and received your code, enter it in "Enter Code".', 'info'); return;
-    }
-    _setAuthMsg('auth-register-msg', 'Registration received! Once you have paid and received your code, click "Enter Code" above.', 'success');
-    document.getElementById('auth-name').value  = '';
-    document.getElementById('auth-email').value = '';
+    // Store session and go straight into app
+    const enteredName = document.getElementById('auth-name').value.trim();
+    Auth.set({ token: data.code, name: enteredName, email, expires_at: data.expires_at });
+    hideAuthGate();
   } catch { _setAuthMsg('auth-register-msg', 'Network error. Try again.', 'error'); }
-  finally  { _setLoading('auth-register-btn', false, 'Request Access'); }
+  finally  { _setLoading('auth-register-btn', false, 'Get Started →'); }
 }
 
 async function _handleLogin() {
@@ -174,8 +156,6 @@ function initAuth() {
   Trial.start();
   _initAuthTabs();
   document.getElementById('auth-register-btn').addEventListener('click', _handleRegister);
-  document.getElementById('auth-login-btn').addEventListener('click', _handleLogin);
-  document.getElementById('auth-code').addEventListener('keydown',  (e) => { if (e.key === 'Enter') _handleLogin(); });
   document.getElementById('auth-email').addEventListener('keydown', (e) => { if (e.key === 'Enter') _handleRegister(); });
   const logoutBtn = document.getElementById('auth-logout-btn');
   if (logoutBtn) logoutBtn.addEventListener('click', _handleLogout);

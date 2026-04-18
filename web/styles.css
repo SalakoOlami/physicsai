@@ -1578,8 +1578,8 @@ body::after {
   .diff-btn, .num-btn, .timer-btn { flex: 1 1 calc(50% - 4px); min-width: 0; text-align: center; }
   .time-limit-btn { flex: 1 1 calc(33% - 4px); text-align: center; padding: 8px 6px; font-size: 12px; }
 
-  .quiz-mode-toggle { width: 100%; }
-  .quiz-mode-toggle .mode-tab { flex: 1; text-align: center; }
+  .quiz-mode-toggle { width: 100%; flex-wrap: wrap; }
+  .quiz-mode-toggle .mode-tab { flex: 1 1 calc(50% - 4px); text-align: center; min-width: 0; }
   .mode-tab { padding: 8px 10px; font-size: 12px; }
 
   /* ---- Revision ---- */

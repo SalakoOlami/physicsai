@@ -7,6 +7,7 @@ Run with:
 import json
 import os
 import random
+import secrets
 import sqlite3
 import string
 import tempfile
@@ -117,21 +118,18 @@ def _check_daily_limit(ip: str):
     today = datetime.utcnow().strftime("%Y-%m-%d")
     conn = _get_db()
     try:
+        # Atomic UPSERT — avoids race condition between SELECT and UPDATE
+        conn.execute(
+            "INSERT INTO daily_usage (ip, date, count) VALUES (?, ?, 1) "
+            "ON CONFLICT(ip, date) DO UPDATE SET count = count + 1",
+            (ip, today)
+        )
+        conn.commit()
         row = conn.execute(
             "SELECT count FROM daily_usage WHERE ip = ? AND date = ?", (ip, today)
         ).fetchone()
-        count = row["count"] if row else 0
-        if count >= _DAILY_MAX:
+        if row and row["count"] > _DAILY_MAX:
             raise HTTPException(status_code=429, detail="Daily limit reached. Come back tomorrow!")
-        if row:
-            conn.execute(
-                "UPDATE daily_usage SET count = count + 1 WHERE ip = ? AND date = ?", (ip, today)
-            )
-        else:
-            conn.execute(
-                "INSERT INTO daily_usage (ip, date, count) VALUES (?, ?, 1)", (ip, today)
-            )
-        conn.commit()
     finally:
         conn.close()
 
@@ -143,7 +141,7 @@ def _throttle(request: Request):
 def _generate_code() -> str:
     alphabet = string.ascii_uppercase + string.digits
     while True:
-        candidate = ''.join(random.choices(alphabet, k=8))
+        candidate = ''.join(secrets.choice(alphabet) for _ in range(8))
         conn = _get_db()
         row = conn.execute("SELECT id FROM access_codes WHERE code = ?", (candidate,)).fetchone()
         conn.close()
@@ -259,27 +257,31 @@ def health():
     return {"status": "ok"}
 
 
+TRIAL_DAYS = 10
+
 @app.post("/api/auth/register")
 def register(req: RegisterRequest):
+    from datetime import timedelta
     name  = req.name.strip()
     email = req.email.strip().lower()
     conn  = _get_db()
     try:
         existing = conn.execute(
-            "SELECT code, status FROM access_codes WHERE email = ?", (email,)
+            "SELECT code, status, expires_at FROM access_codes WHERE email = ?", (email,)
         ).fetchone()
         if existing:
-            if existing["status"] == "ACTIVE":
-                return {"message": "already_active"}
-            return {"message": "already_registered"}
-        code = _generate_code()
-        now  = datetime.utcnow().isoformat()
+            # Already has an account — let them back in silently
+            return {"message": "registered", "code": existing["code"], "expires_at": existing["expires_at"]}
+        code       = _generate_code()
+        now        = datetime.utcnow()
+        expires_at = (now + timedelta(days=TRIAL_DAYS)).isoformat()
         conn.execute(
-            "INSERT INTO access_codes (name, email, code, status, created_at) VALUES (?, ?, ?, 'PENDING', ?)",
-            (name, email, code, now)
+            "INSERT INTO access_codes (name, email, code, status, created_at, activated_at, expires_at) "
+            "VALUES (?, ?, ?, 'TRIAL', ?, ?, ?)",
+            (name, email, code, now.isoformat(), now.isoformat(), expires_at)
         )
         conn.commit()
-        return {"message": "registered", "code": code}
+        return {"message": "registered", "code": code, "expires_at": expires_at}
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=409, detail="Email already registered")
     finally:
@@ -525,9 +527,13 @@ def theory(req: TheoryRequest, request: Request):
 
 
 @app.post("/api/extract-pdf")
-async def extract_pdf(file: UploadFile = File(...)):
+async def extract_pdf(file: UploadFile = File(...), request: Request = None):
     """Extract text from an uploaded PDF file."""
-    if not file.filename.lower().endswith(".pdf"):
+    if request:
+        _throttle(request)
+    # Validate extension using only the suffix — ignore any path components in the filename
+    filename = os.path.basename(file.filename or "")
+    if not filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported.")
     contents = await file.read()
     if len(contents) > 10 * 1024 * 1024:
