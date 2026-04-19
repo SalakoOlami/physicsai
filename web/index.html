@@ -52,6 +52,12 @@
     </svg>
   </a>
 
+  <a class="nav-link" data-page="blurt" data-tooltip="Blurting">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+    </svg>
+  </a>
+
   <a class="nav-link" data-page="quiz" data-tooltip="Quiz">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="12" r="10"/>
@@ -588,6 +594,123 @@
   </div>
 
 </div><!-- #main -->
+
+  <!-- ============ BLURTING ============ -->
+  <div id="page-blurt" class="page">
+    <div class="page-header">
+      <div class="page-title">Blurting</div>
+      <div class="page-sub">Write everything you know — AI tells you what you missed</div>
+    </div>
+
+    <!-- Setup -->
+    <div id="blurt-setup">
+      <div class="card" style="max-width:520px;">
+        <div style="margin-bottom:20px;">
+          <label class="quiz-label">Source</label>
+          <div class="diff-row">
+            <button class="diff-btn active" data-blurt-source="topic">Topic</button>
+            <button class="diff-btn" data-blurt-source="upload">Upload PDF</button>
+          </div>
+        </div>
+        <div id="blurt-topic-wrap" style="margin-bottom:20px;">
+          <label class="quiz-label">Topic</label>
+          <input id="blurt-topic" class="quiz-input" type="text" placeholder="e.g. Newton's Laws, Electric Fields…" />
+        </div>
+        <div id="blurt-pdf-wrap" style="display:none;margin-bottom:20px;">
+          <label class="quiz-label">Upload your PDF</label>
+          <div class="pdf-upload-area" id="blurt-pdf-area">
+            <input type="file" id="blurt-pdf-input" accept=".pdf" style="display:none;">
+            <div id="blurt-pdf-prompt" class="pdf-upload-prompt">📄 Click to choose a PDF</div>
+            <div id="blurt-pdf-status" style="display:none;font-size:13px;color:#00c48c;margin-top:6px;"></div>
+          </div>
+        </div>
+        <div style="margin-bottom:24px;">
+          <label class="quiz-label">Timer</label>
+          <div class="diff-row">
+            <button class="diff-btn active" data-blurt-timer="0">None</button>
+            <button class="diff-btn" data-blurt-timer="180">3 min</button>
+            <button class="diff-btn" data-blurt-timer="300">5 min</button>
+          </div>
+        </div>
+        <button class="btn btn-primary full-width" id="blurt-start-btn">Start Blurting →</button>
+      </div>
+    </div>
+
+    <!-- Active -->
+    <div id="blurt-active" style="display:none;" class="blurt-active-wrap">
+      <div class="blurt-writing-topbar">
+        <div id="blurt-active-title" class="blurt-writing-title"></div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div id="blurt-timer-display" class="quiz-timer" style="display:none;">⏱ <span id="blurt-timer-val">5:00</span></div>
+          <button class="btn btn-ghost btn-sm" id="blurt-quit-btn">Quit</button>
+        </div>
+      </div>
+      <textarea id="blurt-textarea" class="blurt-textarea" maxlength="3000"
+        placeholder="Write everything you know about this topic… Don't look anything up."></textarea>
+      <div class="blurt-writing-footer">
+        <span id="blurt-char-count" style="font-size:12px;color:var(--muted);">0 / 3000</span>
+        <div id="blurt-loading" style="display:none;color:var(--muted);font-size:14px;">
+          <span class="thinking-dots"><span>.</span><span>.</span><span>.</span></span> Analysing…
+        </div>
+        <button class="btn btn-primary" id="blurt-submit-btn" disabled>Submit →</button>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div id="blurt-results" style="display:none;max-width:680px;">
+      <div class="blurt-score-card">
+        <div class="blurt-score-ring">
+          <svg viewBox="0 0 120 120" class="blurt-ring-svg">
+            <circle cx="60" cy="60" r="50" class="blurt-ring-bg"/>
+            <circle cx="60" cy="60" r="50" class="blurt-ring-fill" id="blurt-ring-fill"/>
+          </svg>
+          <div class="blurt-score-text">
+            <div class="blurt-score-num" id="blurt-score-num">0</div>
+            <div class="blurt-score-label">/ 100</div>
+          </div>
+        </div>
+        <div class="blurt-stat-pills">
+          <div class="blurt-stat-pill">
+            <div class="blurt-stat-val" id="blurt-coverage">0%</div>
+            <div class="blurt-stat-key">Coverage</div>
+          </div>
+          <div class="blurt-stat-pill">
+            <div class="blurt-stat-val" id="blurt-accuracy">0%</div>
+            <div class="blurt-stat-key">Accuracy</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Missing (primary) -->
+      <div class="blurt-section" id="blurt-missing-section">
+        <div class="blurt-section-title missing">❌ What You Missed</div>
+        <ul class="blurt-points-list missing" id="blurt-missing-list"></ul>
+      </div>
+
+      <!-- Misconceptions -->
+      <div class="blurt-section" id="blurt-misc-section" style="display:none;">
+        <div class="blurt-section-title misconception">⚠️ Misconceptions</div>
+        <ul class="blurt-points-list misconception" id="blurt-misc-list"></ul>
+      </div>
+
+      <!-- Correct -->
+      <div class="blurt-section" id="blurt-correct-section">
+        <div class="blurt-section-title correct">✅ What You Got Right</div>
+        <ul class="blurt-points-list correct" id="blurt-correct-list"></ul>
+      </div>
+
+      <!-- Model Answer -->
+      <div class="blurt-section">
+        <div class="blurt-section-title model">📝 Model Answer</div>
+        <div class="blurt-model-answer" id="blurt-model-answer"></div>
+      </div>
+
+      <div style="display:flex;gap:12px;margin-top:24px;">
+        <button class="btn btn-primary" id="blurt-retry-btn">Retry →</button>
+        <button class="btn btn-ghost" id="blurt-exit-btn">Exit</button>
+      </div>
+    </div>
+  </div>
 
 <!-- Study Buddy Name Modal -->
 <div id="buddy-modal" class="buddy-modal-overlay" style="display:none;">

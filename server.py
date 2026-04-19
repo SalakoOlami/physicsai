@@ -23,7 +23,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from src.embedder import embed_query
-from src.openrouter import yield_answer, yield_chat, generate_quiz, generate_theory, generate_flashcards
+from src.openrouter import yield_answer, yield_chat, generate_quiz, generate_theory, generate_flashcards, analyse_blurt
 from src.pdf_loader import load_pdf
 from src.pinecone_store import get_client, query_index
 
@@ -76,6 +76,22 @@ def _init_db():
     conn.commit()
     conn.close()
 
+def _init_blurt_db():
+    conn = _get_db()
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS blurting_attempts (
+            id        INTEGER PRIMARY KEY AUTOINCREMENT,
+            email     TEXT,
+            topic     TEXT,
+            score     INTEGER,
+            coverage  INTEGER,
+            accuracy  INTEGER,
+            timestamp TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
+
 def _init_usage_db():
     conn = _get_db()
     conn.execute("""
@@ -90,6 +106,7 @@ def _init_usage_db():
     conn.close()
 
 _init_db()
+_init_blurt_db()
 _init_usage_db()
 
 # ---------------------------------------------------------------------------
@@ -226,6 +243,13 @@ class FlashcardRequest(BaseModel):
     topic: str = Field(..., min_length=1, max_length=300)
     num_cards: int = Field(10, ge=3, le=20)
     custom_context: str | None = Field(None, max_length=20000)
+
+
+class BlurtRequest(BaseModel):
+    topic: str = Field("", max_length=300)
+    pdf_text: str | None = Field(None, max_length=20000)
+    user_answer: str = Field(..., min_length=1, max_length=3000)
+    email: str = Field("", max_length=200)
 
 
 class RegisterRequest(BaseModel):
@@ -569,6 +593,39 @@ def flashcards(req: FlashcardRequest, request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Flashcard generation error: {e}")
     return {"cards": cards}
+
+
+@app.post("/api/blurt")
+def blurt(req: BlurtRequest, request: Request):
+    """Analyse a student's blurted answer and return structured feedback."""
+    _throttle(request)
+    topic = req.topic.strip() or "Physics"
+    if req.pdf_text:
+        matches = [{"source": "Uploaded PDF", "text": req.pdf_text}]
+    else:
+        try:
+            q_vec = embed_query(topic)
+            matches = query_index(_pc, q_vec, top_k=6)
+            matches = [m for m in matches if _is_readable(m.get("text", ""))]
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Retrieval error: {e}")
+    try:
+        result = analyse_blurt(topic, req.user_answer, matches)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Analysis error: {e}")
+    # Save attempt
+    try:
+        conn = _get_db()
+        conn.execute(
+            "INSERT INTO blurting_attempts (email, topic, score, coverage, accuracy, timestamp) VALUES (?,?,?,?,?,?)",
+            (req.email, topic, result.get("score", 0), result.get("coverage", 0),
+             result.get("accuracy", 0), datetime.utcnow().isoformat())
+        )
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass  # Don't fail the request if logging fails
+    return result
 
 
 def _gdrive_preview(file_id: str) -> str:

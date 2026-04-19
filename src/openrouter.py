@@ -265,6 +265,56 @@ def generate_theory(topic: str, chapter: str, context_chunks: list[dict]) -> dic
     return json.loads(raw.strip())
 
 
+def analyse_blurt(topic: str, user_answer: str, context_chunks: list[dict]) -> dict:
+    """Compare student's blurted answer against reference content. Returns structured feedback."""
+    context_text = "\n\n---\n\n".join(
+        f"[Source: {c['source']}]\n{c['text']}" for c in context_chunks
+    ) if context_chunks else "Use general A-Level Physics knowledge."
+
+    prompt = (
+        f"You are an A-Level Physics examiner. A student was asked to write everything they know about: {topic}\n\n"
+        f"Reference material:\n{context_text}\n\n"
+        f"Student's answer:\n{user_answer}\n\n"
+        "Compare the student's answer against the reference using A-Level Physics marking standards.\n"
+        "Return ONLY valid JSON (no markdown), exactly this shape:\n"
+        '{"correct_points":["..."],"missing_points":["..."],"misconceptions":["..."],'
+        '"score":0,"coverage":0,"accuracy":0,"model_answer":"..."}\n\n'
+        "Rules:\n"
+        "- correct_points: key facts/equations/definitions the student got right (list of strings)\n"
+        "- missing_points: important points they forgot (list of strings, be specific)\n"
+        "- misconceptions: things they stated incorrectly (list of strings, explain the correction)\n"
+        "- score: overall mark 0-100\n"
+        "- coverage: % of key points covered 0-100\n"
+        "- accuracy: % of what they wrote that was correct 0-100\n"
+        "- model_answer: ideal exam answer, 3-5 lines, concise and mark-scheme style\n"
+        "- If misconceptions is empty return []\n"
+        "- No extra text outside the JSON"
+    )
+
+    payload = {
+        "model": OPENROUTER_MODEL,
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": False,
+        "temperature": 0.2,
+        "max_tokens": 1200,
+    }
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://localhost",
+        "X-Title": "RAG System",
+    }
+    resp = requests.post(OPENROUTER_URL, json=payload, headers=headers, timeout=60)
+    resp.raise_for_status()
+    raw = resp.json()["choices"][0]["message"]["content"].strip()
+    if raw.startswith("```"):
+        parts = raw.split("```")
+        raw = parts[1] if len(parts) > 1 else raw
+        if raw.startswith("json"):
+            raw = raw[4:]
+    return json.loads(raw.strip())
+
+
 def generate_flashcards(topic: str, num_cards: int, context_chunks: list[dict]) -> list[dict]:
     """Generate flashcards. Returns list of {front, back}."""
     context_text = "\n\n---\n\n".join(

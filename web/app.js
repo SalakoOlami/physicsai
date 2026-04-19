@@ -2137,6 +2137,211 @@ document.getElementById('buddy-colour-picker').addEventListener('input', functio
 });
 
 /* ============================================================
+   BLURTING
+   ============================================================ */
+const Blurt = {
+  source: 'topic',
+  extractedText: null,
+  timerSeconds: 0,
+  timerInterval: null,
+  previousScore: null,
+  lastTopic: '',
+  lastPdfText: null,
+};
+
+// Source toggle
+document.querySelectorAll('[data-blurt-source]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-blurt-source]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    Blurt.source = btn.dataset.blurtSource;
+    document.getElementById('blurt-topic-wrap').style.display = Blurt.source === 'topic' ? '' : 'none';
+    document.getElementById('blurt-pdf-wrap').style.display = Blurt.source === 'upload' ? '' : 'none';
+  });
+});
+
+// PDF area
+document.getElementById('blurt-pdf-area').addEventListener('click', () => {
+  document.getElementById('blurt-pdf-input').click();
+});
+document.getElementById('blurt-pdf-input').addEventListener('change', function () {
+  const file = this.files[0];
+  if (file) {
+    document.getElementById('blurt-pdf-status').textContent = `✓ ${file.name}`;
+    document.getElementById('blurt-pdf-status').style.display = '';
+    document.getElementById('blurt-pdf-prompt').style.display = 'none';
+    Blurt.extractedText = null;
+  }
+});
+
+// Timer toggle
+document.querySelectorAll('[data-blurt-timer]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-blurt-timer]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    Blurt.timerSeconds = parseInt(btn.dataset.blurtTimer);
+  });
+});
+
+// Textarea char counter + enable submit
+document.getElementById('blurt-textarea').addEventListener('input', function () {
+  const len = this.value.length;
+  document.getElementById('blurt-char-count').textContent = `${len} / 3000`;
+  document.getElementById('blurt-submit-btn').disabled = len === 0;
+});
+
+document.getElementById('blurt-start-btn').addEventListener('click', startBlurt);
+document.getElementById('blurt-submit-btn').addEventListener('click', submitBlurt);
+document.getElementById('blurt-quit-btn').addEventListener('click', () => {
+  blurtClearTimer();
+  document.getElementById('blurt-active').style.display = 'none';
+  document.getElementById('blurt-setup').style.display = '';
+});
+document.getElementById('blurt-retry-btn').addEventListener('click', () => {
+  document.getElementById('blurt-results').style.display = 'none';
+  document.getElementById('blurt-textarea').value = '';
+  document.getElementById('blurt-char-count').textContent = '0 / 3000';
+  document.getElementById('blurt-submit-btn').disabled = true;
+  document.getElementById('blurt-active').style.display = '';
+  if (Blurt.timerSeconds > 0) startBlurtTimer();
+});
+document.getElementById('blurt-exit-btn').addEventListener('click', () => {
+  document.getElementById('blurt-results').style.display = 'none';
+  document.getElementById('blurt-setup').style.display = '';
+  Blurt.previousScore = null;
+});
+
+async function startBlurt() {
+  if (Blurt.source === 'topic') {
+    const topic = document.getElementById('blurt-topic').value.trim();
+    if (!topic) { document.getElementById('blurt-topic').focus(); return; }
+    Blurt.lastTopic = topic;
+    Blurt.lastPdfText = null;
+    document.getElementById('blurt-active-title').textContent = topic;
+  } else {
+    const fileInput = document.getElementById('blurt-pdf-input');
+    if (!fileInput.files[0]) { alert('Please choose a PDF file first.'); return; }
+    if (!Blurt.extractedText) {
+      const btn = document.getElementById('blurt-start-btn');
+      btn.disabled = true; btn.textContent = 'Reading PDF…';
+      try {
+        Blurt.extractedText = await extractPDF(fileInput);
+        Blurt.lastPdfText = Blurt.extractedText;
+        Blurt.lastTopic = fileInput.files[0].name.replace('.pdf', '');
+      } catch (err) { alert(`Could not read PDF: ${err.message}`); return; }
+      finally { btn.disabled = false; btn.textContent = 'Start Blurting →'; }
+    }
+    document.getElementById('blurt-active-title').textContent = Blurt.lastTopic;
+  }
+  document.getElementById('blurt-setup').style.display = 'none';
+  document.getElementById('blurt-textarea').value = '';
+  document.getElementById('blurt-char-count').textContent = '0 / 3000';
+  document.getElementById('blurt-submit-btn').disabled = true;
+  document.getElementById('blurt-loading').style.display = 'none';
+  document.getElementById('blurt-active').style.display = '';
+  if (Blurt.timerSeconds > 0) startBlurtTimer();
+}
+
+function startBlurtTimer() {
+  let remaining = Blurt.timerSeconds;
+  const display = document.getElementById('blurt-timer-display');
+  const val = document.getElementById('blurt-timer-val');
+  display.style.display = '';
+  display.classList.remove('danger');
+  const fmt = s => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+  val.textContent = fmt(remaining);
+  Blurt.timerInterval = setInterval(() => {
+    remaining--;
+    val.textContent = fmt(remaining);
+    if (remaining <= 30) display.classList.add('danger');
+    if (remaining <= 0) { blurtClearTimer(); submitBlurt(); }
+  }, 1000);
+}
+
+function blurtClearTimer() {
+  if (Blurt.timerInterval) { clearInterval(Blurt.timerInterval); Blurt.timerInterval = null; }
+  document.getElementById('blurt-timer-display').style.display = 'none';
+}
+
+async function submitBlurt() {
+  const answer = document.getElementById('blurt-textarea').value.trim();
+  if (!answer) return;
+  blurtClearTimer();
+  document.getElementById('blurt-submit-btn').disabled = true;
+  document.getElementById('blurt-loading').style.display = '';
+
+  const session = Auth.get();
+  const email = session ? (session.email || '') : '';
+
+  try {
+    const resp = await fetch(`${API}/api/blurt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        topic: Blurt.lastTopic,
+        pdf_text: Blurt.lastPdfText || null,
+        user_answer: answer,
+        email,
+      }),
+    });
+    if (!resp.ok) { const e = await resp.json().catch(() => ({})); throw new Error(e.detail || `HTTP ${resp.status}`); }
+    const data = await resp.json();
+
+    // XP
+    const xpEarned = 15 + Math.round((data.score || 0) * 0.5);
+    const improved = Blurt.previousScore !== null && data.score > Blurt.previousScore;
+    addXP(xpEarned + (improved ? 10 : 0));
+    Blurt.previousScore = data.score;
+    Store.bumpQuestion();
+
+    document.getElementById('blurt-active').style.display = 'none';
+    renderBlurtResults(data);
+    document.getElementById('blurt-results').style.display = '';
+  } catch (err) {
+    alert(`Analysis failed: ${err.message}`);
+    document.getElementById('blurt-submit-btn').disabled = false;
+  } finally {
+    document.getElementById('blurt-loading').style.display = 'none';
+  }
+}
+
+function renderBlurtResults(data) {
+  const score = data.score || 0;
+  document.getElementById('blurt-score-num').textContent = score;
+  document.getElementById('blurt-coverage').textContent = `${data.coverage || 0}%`;
+  document.getElementById('blurt-accuracy').textContent = `${data.accuracy || 0}%`;
+
+  // Animate ring — circumference = 2π×50 ≈ 314
+  const circumference = 314;
+  const offset = circumference - (score / 100) * circumference;
+  const ring = document.getElementById('blurt-ring-fill');
+  ring.style.strokeDasharray = circumference;
+  ring.style.strokeDashoffset = offset;
+  const colour = score >= 70 ? '#00c48c' : score >= 40 ? '#f59e0b' : '#ff4d6d';
+  ring.style.stroke = colour;
+  document.getElementById('blurt-score-num').style.color = colour;
+
+  const makeList = (el, items) => {
+    el.innerHTML = items.length
+      ? items.map(p => `<li>${escapeHtml(p)}</li>`).join('')
+      : '<li style="opacity:0.5">None</li>';
+  };
+
+  makeList(document.getElementById('blurt-missing-list'), data.missing_points || []);
+  makeList(document.getElementById('blurt-correct-list'), data.correct_points || []);
+
+  const misc = data.misconceptions || [];
+  document.getElementById('blurt-misc-section').style.display = misc.length ? '' : 'none';
+  if (misc.length) makeList(document.getElementById('blurt-misc-list'), misc);
+
+  document.getElementById('blurt-model-answer').textContent = data.model_answer || '';
+}
+
+function switchToBlurtMode() {
+  // No-op — page navigation handles it
+}
+
+/* ============================================================
    INIT
    ============================================================ */
 initAuth();
